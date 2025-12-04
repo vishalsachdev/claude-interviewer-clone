@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, saveMessage, updateCost } from '@/lib/db/sessions';
 import { DEFAULT_MODEL, generateInterviewResponse, calculateCost } from '@/lib/orchestration/interview';
-import { ChatOpenAI } from '@langchain/openai';
-
-// Temperature 0.8 keeps conversation lively while staying on-topic
-const model = new ChatOpenAI({
-  model: DEFAULT_MODEL,
-  temperature: 0.8,
-  openAIApiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function POST(request: NextRequest) {
   try {

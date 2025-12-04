@@ -87,8 +87,7 @@ npm run dev
 ```
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes
-│   │   ├── interview/     # Interview endpoints
-│   │   └── analysis/      # Analysis endpoints
+│   │   └── interview/     # Interview endpoints
 │   ├── page.tsx           # Main chat interface
 │   └── layout.tsx         # Root layout
 ├── lib/                   # Core logic
