@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, saveMessage, updateSessionStatus, updateCost } from '@/lib/db/sessions';
-import { generateInterviewResponse, calculateCost } from '@/lib/orchestration/interview';
+import { getSession, saveMessage, updateCost } from '@/lib/db/sessions';
+import { DEFAULT_MODEL, generateInterviewResponse, calculateCost } from '@/lib/orchestration/interview';
 import { ChatOpenAI } from '@langchain/openai';
 
+// Temperature 0.8 keeps conversation lively while staying on-topic
 const model = new ChatOpenAI({
-  modelName: 'gpt-4',
-  temperature: 0.7,
+  model: DEFAULT_MODEL,
+  temperature: 0.8,
   openAIApiKey: process.env.OPENAI_API_KEY,
 });
 
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Track token usage (rough estimate)
     // In production, you'd get this from the API response
     const estimatedTokens = (message.length + assistantResponse.length) / 4; // Rough estimate
-    const cost = calculateCost(estimatedTokens);
+    const cost = calculateCost(estimatedTokens, DEFAULT_MODEL);
     updateCost(sessionId, Math.round(estimatedTokens), cost);
 
     const updatedSession = getSession(sessionId);
@@ -91,4 +92,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

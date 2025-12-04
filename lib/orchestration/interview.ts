@@ -1,9 +1,12 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { InterviewPlan, InterviewAnalysis } from '@/types';
 
+export const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
+
+// Temperature 0.8 keeps conversation lively while staying on-topic
 const model = new ChatOpenAI({
-  modelName: 'gpt-4',
-  temperature: 0.7,
+  model: DEFAULT_MODEL,
+  temperature: 0.8,
   openAIApiKey: process.env.OPENAI_API_KEY,
 });
 
@@ -130,16 +133,20 @@ Recommendations: Optional suggestions for follow-up or action items`;
   }
 }
 
-export function calculateCost(tokens: number, modelName: string = 'gpt-4'): number {
-  // OpenAI pricing (as of 2024)
+export function calculateCost(tokens: number, modelName: string = DEFAULT_MODEL): number {
+  // OpenAI pricing (as of November 2024) in USD per 1K tokens
+  // Always verify current pricing at https://openai.com/pricing
   const pricing: Record<string, { input: number; output: number }> = {
-    'gpt-4': { input: 0.03 / 1000, output: 0.06 / 1000 },
-    'gpt-4-turbo': { input: 0.01 / 1000, output: 0.03 / 1000 },
-    'gpt-3.5-turbo': { input: 0.0015 / 1000, output: 0.002 / 1000 }
+    'gpt-4o': { input: 0.005, output: 0.015 },
+    'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+    'gpt-4-turbo': { input: 0.01, output: 0.03 },
+    'gpt-4': { input: 0.03, output: 0.06 },
+    'gpt-3.5-turbo': { input: 0.0015, output: 0.002 }
   };
 
-  const rates = pricing[modelName] || pricing['gpt-4'];
+  const rates = pricing[modelName] || pricing['gpt-4o'];
+  const inputRate = rates.input / 1000;
+  const outputRate = rates.output / 1000;
   // Rough estimate: assume 50/50 input/output split
-  return (tokens / 2) * rates.input + (tokens / 2) * rates.output;
+  return (tokens / 2) * inputRate + (tokens / 2) * outputRate;
 }
-
