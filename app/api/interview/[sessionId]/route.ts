@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { sessionId: string } }
 ) {
   try {
-    const session = getSession(params.sessionId);
+    const session = await getSession(params.sessionId);
 
     if (!session) {
       return NextResponse.json(
@@ -24,4 +24,3 @@ export async function GET(
     );
   }
 }
-

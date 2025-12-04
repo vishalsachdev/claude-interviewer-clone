@@ -13,14 +13,14 @@ This project is inspired by Claude's interview bot, which demonstrates how AI ca
 
 This clone implements similar functionality using OpenAI's GPT-4o model (with support for other OpenAI chat models), making it accessible as an open-source alternative.
 
-## ⚠️ Privacy & Data Protection
+## Privacy & Data Protection
 
 **IMPORTANT: No Personal Information Collection**
 
 - **No login required**: This application does not collect any personally identifiable information (PII)
 - **No user accounts**: All interviews are anonymous and session-based
 - **Please do not share personal information**: While we don't collect PII, we strongly advise users not to share personal, sensitive, or confidential information during interviews
-- **Local storage**: Interview transcripts are stored locally in SQLite and can be exported/deleted at any time
+- **Cloud storage**: Interview transcripts are stored in Supabase (PostgreSQL)
 - **No tracking**: No analytics, tracking, or user profiling is performed
 
 This application is designed for research and educational purposes. Use responsibly and do not share sensitive personal information.
@@ -30,7 +30,7 @@ This application is designed for research and educational purposes. Use responsi
 - **Dynamic Interview Planning**: AI generates interview questions based on context
 - **Conversational Interviewing**: Natural, probing follow-up questions
 - **Transcript Analysis**: Automatic analysis and insights from interviews
-- **Secure Storage**: SQLite database for transcript storage
+- **Cloud Database**: Supabase (PostgreSQL) for reliable storage
 - **Cost Tracking**: Monitor token usage and costs per interview
 
 ## Tech Stack
@@ -38,48 +38,53 @@ This application is designed for research and educational purposes. Use responsi
 - **Frontend**: Next.js 14 with React
 - **Backend**: Next.js API Routes
 - **LLM**: OpenAI GPT-4o (default)
-  - **Why GPT-4o?**
-    - Great balance of cost and quality for conversational flows
-    - Multimodal support when you enable image/audio inputs
-    - Widely available and stable in production
-  - **Other models you can use:**
-    - **gpt-4o-mini**: Lower cost for lighter workloads
-    - **gpt-3.5-turbo**: Legacy budget option
-  
-  To switch models, set `OPENAI_MODEL` in your `.env` (fallbacks to `gpt-4o`). The backend is wired to use this value across the orchestration and message endpoints.
 - **Orchestration**: LangChain
-- **Database**: SQLite (better-sqlite3)
+- **Database**: Supabase (PostgreSQL)
 - **Deployment**: Vercel
 
 ## Setup
 
-1. Install dependencies:
+### 1. Install dependencies
 ```bash
 npm install
 ```
 
-2. Copy environment variables:
+### 2. Set up Supabase
+
+1. Create a free project at [supabase.com](https://supabase.com)
+2. Go to **SQL Editor** and run the contents of `supabase/schema.sql`
+3. Go to **Settings > API** and copy your credentials
+
+### 3. Configure environment variables
+
+Copy the example file:
 ```bash
 cp .env.example .env
 ```
 
-3. Add your OpenAI API key to `.env`:
-```
+Add your credentials to `.env`:
+```bash
 OPENAI_API_KEY=sk-your-key-here
+OPENAI_MODEL=gpt-4o
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-4. Run the development server:
+### 4. Run the development server
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Deployment to Vercel
 
 1. Push your code to GitHub
 2. Import your repository in Vercel
-3. Add your `OPENAI_API_KEY` as an environment variable in Vercel
+3. Add environment variables in Vercel:
+   - `OPENAI_API_KEY`
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 4. Deploy!
 
 ## Project Structure
@@ -91,9 +96,11 @@ npm run dev
 │   ├── page.tsx           # Main chat interface
 │   └── layout.tsx         # Root layout
 ├── lib/                   # Core logic
-│   ├── db/               # Database setup
-│   ├── orchestration/    # LangChain workflows
-│   └── utils/            # Utilities
+│   ├── db/               # Database layer (Supabase)
+│   ├── supabase/         # Supabase client setup
+│   └── orchestration/    # LangChain workflows
+├── supabase/             # Database schema
+│   └── schema.sql        # SQL to set up tables
 └── types/                # TypeScript types
 ```
 

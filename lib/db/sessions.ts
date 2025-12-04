@@ -1,31 +1,64 @@
-import { getDatabase } from './setup';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { InterviewSession, Message, InterviewPlan, InterviewAnalysis } from '@/types';
 
-export function createSession(topic: string): string {
-  const db = getDatabase();
+// Lazy initialization to avoid build-time errors
+let supabase: SupabaseClient | null = null;
+
+function getSupabase(): SupabaseClient {
+  if (!supabase) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!url || !key) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
+    supabase = createClient(url, key);
+  }
+  return supabase;
+}
+
+export async function createSession(topic: string): Promise<string> {
   const id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const now = new Date().toISOString();
 
-  db.prepare(`
-    INSERT INTO sessions (id, topic, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, topic, 'planning', now, now);
+  const { error } = await getSupabase()
+    .from('sessions')
+    .insert({
+      id,
+      topic,
+      status: 'planning',
+      created_at: now,
+      updated_at: now
+    });
+
+  if (error) {
+    throw new Error(`Failed to create session: ${error.message}`);
+  }
 
   return id;
 }
 
-export function getSession(sessionId: string): InterviewSession | null {
-  const db = getDatabase();
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId) as any;
+export async function getSession(sessionId: string): Promise<InterviewSession | null> {
+  const { data: session, error: sessionError } = await getSupabase()
+    .from('sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .single();
 
-  if (!session) return null;
+  if (sessionError || !session) {
+    return null;
+  }
 
-  const messages = db.prepare(`
-    SELECT role, content, timestamp
-    FROM messages
-    WHERE session_id = ?
-    ORDER BY timestamp ASC
-  `).all(sessionId) as Message[];
+  const { data: messages, error: messagesError } = await getSupabase()
+    .from('messages')
+    .select('role, content, timestamp')
+    .eq('session_id', sessionId)
+    .order('timestamp', { ascending: true });
+
+  if (messagesError) {
+    throw new Error(`Failed to fetch messages: ${messagesError.message}`);
+  }
 
   return {
     id: session.id,
@@ -33,9 +66,9 @@ export function getSession(sessionId: string): InterviewSession | null {
     status: session.status,
     createdAt: session.created_at,
     updatedAt: session.updated_at,
-    transcript: messages,
-    plan: session.plan ? JSON.parse(session.plan) : undefined,
-    analysis: session.analysis ? JSON.parse(session.analysis) : undefined,
+    transcript: (messages || []) as Message[],
+    plan: session.plan as InterviewPlan | undefined,
+    analysis: session.analysis as InterviewAnalysis | undefined,
     cost: session.cost_tokens > 0 ? {
       tokens: session.cost_tokens,
       cost: session.cost_amount
@@ -43,47 +76,86 @@ export function getSession(sessionId: string): InterviewSession | null {
   };
 }
 
-export function updateSessionStatus(sessionId: string, status: InterviewSession['status']) {
-  const db = getDatabase();
-  db.prepare(`
-    UPDATE sessions
-    SET status = ?, updated_at = ?
-    WHERE id = ?
-  `).run(status, new Date().toISOString(), sessionId);
+export async function updateSessionStatus(sessionId: string, status: InterviewSession['status']): Promise<void> {
+  const { error } = await getSupabase()
+    .from('sessions')
+    .update({
+      status,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', sessionId);
+
+  if (error) {
+    throw new Error(`Failed to update session status: ${error.message}`);
+  }
 }
 
-export function saveMessage(sessionId: string, message: Message) {
-  const db = getDatabase();
-  db.prepare(`
-    INSERT INTO messages (session_id, role, content, timestamp)
-    VALUES (?, ?, ?, ?)
-  `).run(sessionId, message.role, message.content, message.timestamp);
+export async function saveMessage(sessionId: string, message: Message): Promise<void> {
+  const { error } = await getSupabase()
+    .from('messages')
+    .insert({
+      session_id: sessionId,
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp
+    });
+
+  if (error) {
+    throw new Error(`Failed to save message: ${error.message}`);
+  }
 }
 
-export function savePlan(sessionId: string, plan: InterviewPlan) {
-  const db = getDatabase();
-  db.prepare(`
-    UPDATE sessions
-    SET plan = ?, updated_at = ?
-    WHERE id = ?
-  `).run(JSON.stringify(plan), new Date().toISOString(), sessionId);
+export async function savePlan(sessionId: string, plan: InterviewPlan): Promise<void> {
+  const { error } = await getSupabase()
+    .from('sessions')
+    .update({
+      plan,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', sessionId);
+
+  if (error) {
+    throw new Error(`Failed to save plan: ${error.message}`);
+  }
 }
 
-export function saveAnalysis(sessionId: string, analysis: InterviewAnalysis) {
-  const db = getDatabase();
-  db.prepare(`
-    UPDATE sessions
-    SET analysis = ?, updated_at = ?
-    WHERE id = ?
-  `).run(JSON.stringify(analysis), new Date().toISOString(), sessionId);
+export async function saveAnalysis(sessionId: string, analysis: InterviewAnalysis): Promise<void> {
+  const { error } = await getSupabase()
+    .from('sessions')
+    .update({
+      analysis,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', sessionId);
+
+  if (error) {
+    throw new Error(`Failed to save analysis: ${error.message}`);
+  }
 }
 
-export function updateCost(sessionId: string, tokens: number, cost: number) {
-  const db = getDatabase();
-  db.prepare(`
-    UPDATE sessions
-    SET cost_tokens = cost_tokens + ?, cost_amount = cost_amount + ?, updated_at = ?
-    WHERE id = ?
-  `).run(tokens, cost, new Date().toISOString(), sessionId);
-}
+export async function updateCost(sessionId: string, tokens: number, cost: number): Promise<void> {
+  // First get current values
+  const { data: session, error: fetchError } = await getSupabase()
+    .from('sessions')
+    .select('cost_tokens, cost_amount')
+    .eq('id', sessionId)
+    .single();
 
+  if (fetchError || !session) {
+    throw new Error(`Failed to fetch session for cost update: ${fetchError?.message}`);
+  }
+
+  // Update with new totals
+  const { error } = await getSupabase()
+    .from('sessions')
+    .update({
+      cost_tokens: (session.cost_tokens || 0) + tokens,
+      cost_amount: (session.cost_amount || 0) + cost,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', sessionId);
+
+  if (error) {
+    throw new Error(`Failed to update cost: ${error.message}`);
+  }
+}

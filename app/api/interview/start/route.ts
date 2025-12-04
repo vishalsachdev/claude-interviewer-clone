@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSession, getSession, updateSessionStatus, savePlan } from '@/lib/db/sessions';
+import { createSession, getSession, updateSessionStatus, savePlan, saveMessage } from '@/lib/db/sessions';
 import { generateInterviewPlan } from '@/lib/orchestration/interview';
 
 export async function POST(request: NextRequest) {
@@ -14,11 +14,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new session
-    const sessionId = createSession(topic.trim());
+    const sessionId = await createSession(topic.trim());
 
     // Generate interview plan
     const plan = await generateInterviewPlan(topic.trim());
-    savePlan(sessionId, plan);
+    await savePlan(sessionId, plan);
 
     // Add initial system message
     const systemMessage = {
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       content: `You are conducting an interview about "${topic}". Your objectives are: ${plan.objectives.join(', ')}`,
       timestamp: new Date().toISOString()
     };
+    await saveMessage(sessionId, systemMessage);
 
     // Add initial greeting
     const greeting = {
@@ -33,10 +34,11 @@ export async function POST(request: NextRequest) {
       content: `Hello! I'd like to interview you about ${topic}. Let's start with: ${plan.questions[0] || `What can you tell me about ${topic}?`}`,
       timestamp: new Date().toISOString()
     };
+    await saveMessage(sessionId, greeting);
 
-    updateSessionStatus(sessionId, 'interviewing');
+    await updateSessionStatus(sessionId, 'interviewing');
 
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
 
     return NextResponse.json({
       sessionId,
@@ -51,4 +53,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
     if (!session) {
       return NextResponse.json(
         { error: 'Session not found' },
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       content: message,
       timestamp: new Date().toISOString()
     };
-    saveMessage(sessionId, userMessage);
+    await saveMessage(sessionId, userMessage);
 
     // Generate response
     if (!session.plan) {
@@ -62,15 +62,14 @@ export async function POST(request: NextRequest) {
       content: assistantResponse,
       timestamp: new Date().toISOString()
     };
-    saveMessage(sessionId, assistantMessage);
+    await saveMessage(sessionId, assistantMessage);
 
     // Track token usage (rough estimate)
-    // In production, you'd get this from the API response
-    const estimatedTokens = (message.length + assistantResponse.length) / 4; // Rough estimate
+    const estimatedTokens = (message.length + assistantResponse.length) / 4;
     const cost = calculateCost(estimatedTokens, DEFAULT_MODEL);
-    updateCost(sessionId, Math.round(estimatedTokens), cost);
+    await updateCost(sessionId, Math.round(estimatedTokens), cost);
 
-    const updatedSession = getSession(sessionId);
+    const updatedSession = await getSession(sessionId);
 
     return NextResponse.json({
       message: assistantResponse,

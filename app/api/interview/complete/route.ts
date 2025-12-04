@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
     if (!session) {
       return NextResponse.json(
         { error: 'Session not found' },
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    updateSessionStatus(sessionId, 'analyzing');
+    await updateSessionStatus(sessionId, 'analyzing');
 
     // Analyze the interview
     const analysis = await analyzeInterview(
@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       session.transcript
     );
 
-    saveAnalysis(sessionId, analysis);
-    updateSessionStatus(sessionId, 'completed');
+    await saveAnalysis(sessionId, analysis);
+    await updateSessionStatus(sessionId, 'completed');
 
-    const updatedSession = getSession(sessionId);
+    const updatedSession = await getSession(sessionId);
 
     return NextResponse.json({
       analysis,
@@ -54,4 +54,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
