@@ -36,6 +36,7 @@ export default function Home() {
   const [loadingRole, setLoadingRole] = useState<EducationRole | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Timing state
   const [interviewStartTime, setInterviewStartTime] = useState<number | null>(null);
@@ -171,6 +172,8 @@ export default function Home() {
       }
     } finally {
       setLoading(false);
+      // Focus input after bot responds
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
@@ -425,6 +428,7 @@ export default function Home() {
               {session.status === 'interviewing' && (
                 <div style={styles.inputGroup}>
                   <input
+                    ref={inputRef}
                     type="text"
                     value={message}
                     onChange={(e) => {
