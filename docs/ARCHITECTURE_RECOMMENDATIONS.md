@@ -1,14 +1,79 @@
-# Architecture Recommendations: Multi-Agent AI Interviewer
+# Architecture Recommendations: AI Interviewer
 
-Based on analysis of the 99Ravens article "Your Experts Won't Train Your AI. You Have to Interview Them" and the current codebase implementation.
+Based on analysis of the 99Ravens article "Your Experts Won't Train Your AI. You Have to Interview Them" and first-principles evaluation against the current codebase.
+
+---
 
 ## Executive Summary
 
-The current implementation uses a **single-agent architecture** that cannot achieve "peer status" with experts for extended interviews. The article recommends a **multi-agent architecture** with an Interviewer + Note-Taker pattern that separates conversation from strategic analysis.
+The 99Ravens article describes a sophisticated **multi-agent architecture** (Interviewer + Note-Taker) for capturing expert knowledge. However, after first-principles analysis, **this architecture is not recommended for the current use case**.
 
-## Current Architecture vs. Recommended Architecture
+The multi-agent approach solves problems that don't exist at this application's scale:
+- **40+ minute interviews** → This app targets **10 minutes**
+- **Context window overflow** → This app uses **last 10 messages only**
+- **Reusable digital personas** → This app outputs **summaries + insights**
+- **High-value expert capture** → This app collects **stakeholder feedback**
 
-### Current State (Single-Agent)
+**Recommendation**: Implement targeted single-agent improvements instead. Revisit multi-agent when the use case evolves.
+
+---
+
+## First-Principles Analysis
+
+### What Problem Does Multi-Agent Solve?
+
+The 99Ravens article identifies these single-agent failure modes:
+
+| Failure Mode | Occurs When | This App's Exposure |
+|--------------|-------------|---------------------|
+| "Gets lost in tangents" | Long conversations (40+ min) | **Low** - 10 min / 8 exchanges |
+| "Repeats questions" | No memory of what was asked | **Low** - solvable with simple tracking |
+| "Context window fills up" | Full transcript in context | **None** - using 10-message truncation |
+| "Can't separate gold from gravel" | Building reusable personas | **N/A** - output is summary only |
+| "Loses peer status" | Extended expert interviews | **Low** - short stakeholder feedback |
+
+### The Cost-Value Equation
+
+**Token consumption** (from [Anthropic research](https://www.anthropic.com/engineering/multi-agent-research-system)):
+- Single agent: ~4× more tokens than simple chat
+- Multi-agent: ~15× more tokens than chat
+
+**This application's constraints**:
+- Target cost: <$0.05/interview
+- Multi-agent estimated cost: $0.15-0.25/interview (3-5× increase)
+
+**Question**: Is 3-5× cost increase justified for 10-minute educational feedback interviews?
+
+**Answer**: No. The value extracted doesn't justify the complexity and cost.
+
+### Use Case Comparison
+
+| Aspect | 99Ravens Target | This Application |
+|--------|-----------------|------------------|
+| **Interview Duration** | 40+ minutes | 10 minutes |
+| **Interviewee** | Senior domain experts | Students, staff, instructors |
+| **Output** | Reusable digital persona | Summary + 3-5 insights |
+| **Value per Interview** | Very high (career knowledge) | Moderate (stakeholder feedback) |
+| **Cost Tolerance** | High ($0.25+ acceptable) | Low (<$0.05 target) |
+| **Validation Required** | Yes (expert reviews persona) | No |
+
+### When Multi-Agent Becomes Appropriate
+
+Revisit multi-agent architecture when ANY of these conditions are met:
+
+1. **Interview duration increases to 30+ minutes**
+2. **Output requirement changes to reusable digital personas**
+3. **Cost tolerance increases to $0.25+/interview**
+4. **Expert validation loops are added**
+5. **Context window management becomes a demonstrated problem**
+
+---
+
+## Recommended Architecture: Enhanced Single-Agent
+
+Instead of multi-agent, implement these targeted improvements:
+
+### Current State
 
 ```
 User Message → Single LLM Call → Response
@@ -16,16 +81,213 @@ User Message → Single LLM Call → Response
             (Fixed prompt with plan)
 ```
 
-**Current Limitations:**
-- Single LLM handles both conversation AND strategic decisions
-- Fixed interview plans - no adaptive questioning
-- No coverage tracking or gap identification
-- Time enforcement is client-side only (unreliable)
-- Context window fills up without summarization
-- Analysis is a single-shot extraction, not a reusable persona
-- No validation stage with the expert
+### Recommended State
 
-### Recommended State (Multi-Agent)
+```
+User Message → Single LLM Call → Response + Structured Metadata
+                    ↓
+            (Enhanced prompt with coverage tracking)
+                    ↓
+            Server-side state (topics covered, time elapsed)
+```
+
+---
+
+## Recommended Improvements
+
+### 1. Structured Output for Coverage Tracking (High Impact, Low Effort)
+
+Add structured metadata to each response WITHOUT a second agent. This gives Note-Taker benefits at single-agent cost.
+
+**Modify: `lib/orchestration/interview.ts`**
+
+```typescript
+import { z } from 'zod';
+
+// Structured output schema - single LLM returns both response AND metadata
+export const InterviewResponseSchema = z.object({
+  response: z.string(),
+  metadata: z.object({
+    topicsCovered: z.array(z.string()),
+    currentTopicDepth: z.enum(['surface', 'moderate', 'deep']),
+    suggestedNextTopic: z.string().optional(),
+    detectedGenericResponse: z.boolean(),
+  })
+});
+
+export async function generateInterviewResponse(
+  role: EducationRole,
+  plan: InterviewPlan,
+  conversationHistory: Message[],
+  currentMessage: string,
+  coveredTopics: string[]  // Track across session
+): Promise<{ response: string; metadata: ResponseMetadata }> {
+
+  const prompt = `You are conducting an interview about AI in education with a ${role}.
+
+## Interview Plan
+Objectives: ${plan.objectives.join(', ')}
+Focus Areas: ${plan.focusAreas.join(', ')}
+
+## Already Covered Topics
+${coveredTopics.length > 0 ? coveredTopics.join(', ') : 'None yet'}
+
+## Conversation
+${formatHistory(conversationHistory)}
+
+Their latest response: ${currentMessage}
+
+## Your Task
+1. Acknowledge their response briefly (1 sentence)
+2. Ask ONE follow-up question
+
+## Constraints
+- Ask only ONE question per response
+- Keep response to 2-3 sentences max
+- If they gave a generic "best practice" answer, ask for a SPECIFIC example
+- Probe for challenges and mistakes, not just successes
+- Don't repeat topics already covered
+
+## Response Format
+Return JSON:
+{
+  "response": "Your conversational response here",
+  "metadata": {
+    "topicsCovered": ["topics from focus areas addressed in their response"],
+    "currentTopicDepth": "surface|moderate|deep",
+    "suggestedNextTopic": "next focus area to explore",
+    "detectedGenericResponse": true/false
+  }
+}`;
+
+  // Use structured output mode
+  const result = await model.invoke(prompt, {
+    response_format: { type: "json_object" }
+  });
+
+  return InterviewResponseSchema.parse(JSON.parse(result.content));
+}
+```
+
+### 2. "Probe for Failures" Prompting (High Impact, Trivial Effort)
+
+Add to existing prompt guidelines:
+
+```typescript
+const PROBING_GUIDELINES = `
+## Probing Guidelines
+- If they give a generic "best practice" answer, ask: "Can you tell me about a specific time when...?"
+- Ask about challenges and mistakes: "What hasn't worked well?" or "What would you do differently?"
+- Probe for specifics: "You mentioned X - can you walk me through an example?"
+- Don't accept surface-level answers on important topics
+`;
+```
+
+### 3. Server-Side Time Tracking (Medium Impact, Low Effort)
+
+Move time tracking from client to server for reliability.
+
+**Modify: `lib/db/sessions.ts`**
+
+```typescript
+export interface Session {
+  // ... existing fields
+  startedAt: string | null;      // When interviewing began
+  targetDurationMs: number;       // 10 minutes = 600000
+}
+
+export function shouldWrapUp(session: Session): boolean {
+  if (!session.startedAt) return false;
+  const elapsed = Date.now() - new Date(session.startedAt).getTime();
+  return elapsed >= session.targetDurationMs;
+}
+```
+
+**Modify: `/api/interview/message/route.ts`**
+
+```typescript
+// Check server-side time before generating response
+const shouldWrapUp = checkShouldWrapUp(session);
+if (shouldWrapUp && !isWrapUp) {
+  // Automatically enter wrap-up mode
+  isWrapUp = true;
+}
+```
+
+### 4. Question Deduplication (Medium Impact, Low Effort)
+
+Track asked questions to prevent repetition.
+
+```typescript
+export interface Session {
+  // ... existing fields
+  askedQuestions: string[];  // Track question themes/topics
+}
+
+// In prompt generation
+const prompt = `
+...
+## Questions Already Asked (DO NOT REPEAT)
+${session.askedQuestions.map(q => `- ${q}`).join('\n')}
+...
+`;
+```
+
+### 5. Externalize Interview Configuration (Medium Impact, Medium Effort)
+
+Move hardcoded plans to JSON files for easier iteration.
+
+**Create: `lib/config/plans/student.json`**
+
+```json
+{
+  "role": "student",
+  "objectives": [
+    "Understand how students currently use AI tools in their academic work",
+    "Explore the impact of AI on learning and study habits",
+    "Identify concerns about AI and academic integrity",
+    "Gather perspectives on AI's future role in education"
+  ],
+  "questions": [
+    "First, tell me a bit about yourself - are you an undergraduate or graduate student, and what's your field of study?",
+    "How do you currently use AI tools like ChatGPT, Claude, or other AI assistants in your coursework or studies?"
+  ],
+  "focusAreas": [
+    "Current AI usage patterns",
+    "Learning impact and study habits",
+    "Academic integrity concerns",
+    "Future expectations",
+    "Institutional support needs"
+  ],
+  "probingPrompts": [
+    "Can you give me a specific example of when that happened?",
+    "What challenges have you faced with that?",
+    "What would you do differently if you could?"
+  ]
+}
+```
+
+---
+
+## Implementation Priority
+
+| Change | Impact | Effort | Cost Change | Priority |
+|--------|--------|--------|-------------|----------|
+| Structured output (coverage tracking) | High | Low | +10% | **P0** |
+| "Probe for failures" prompting | High | Trivial | None | **P0** |
+| Server-side time tracking | Medium | Low | None | **P1** |
+| Question deduplication | Medium | Low | None | **P1** |
+| Externalize config to JSON | Medium | Medium | None | **P2** |
+
+**Total estimated cost increase**: ~10% (vs. 300-500% for multi-agent)
+
+---
+
+## Multi-Agent Architecture (Future Reference)
+
+The following section documents the 99Ravens multi-agent architecture for future reference when the use case evolves.
+
+### The Interviewer + Note-Taker Pattern
 
 ```
 User Message → Interviewer Agent → Response
@@ -35,365 +297,132 @@ User Message → Interviewer Agent → Response
               Structured Analysis
 ```
 
----
+**Key insight**: The Note-Taker returns **structured data, not prose**. This prevents the Interviewer from getting confused by a second voice.
 
-## Key Architectural Changes
-
-### 1. Implement the Note-Taker Agent
-
-The Note-Taker is the core innovation. It's an **internal tool invisible to the expert** that continuously analyzes the conversation and returns **structured data, not prose**.
-
-**Create: `lib/agents/note-taker.ts`**
+### What the Note-Taker Tracks
 
 ```typescript
-import { z } from 'zod';
+interface NoteTakerAnalysis {
+  coverageAnalysis: {
+    topic: string;
+    confidence: 'high' | 'medium' | 'low' | 'unexplored';
+    keyPoints: string[];
+  }[];
 
-// Structured output schema - Note-Taker MUST return structured data
-export const NoteTakerAnalysisSchema = z.object({
-  coverageAnalysis: z.array(z.object({
-    topic: z.string(),
-    confidence: z.enum(['high', 'medium', 'low', 'unexplored']),
-    keyPoints: z.array(z.string()),
-  })),
-  gapIdentification: z.array(z.object({
-    area: z.string(),
-    importance: z.enum(['critical', 'high', 'medium', 'low']),
-    suggestedProbe: z.string(),
-  })),
-  timeStatus: z.object({
-    elapsedMinutes: z.number(),
-    targetMinutes: z.number(),
-    pacing: z.enum(['behind', 'on_track', 'ahead']),
-    shouldWrapUp: z.boolean(),
-  }),
-  patternDetection: z.object({
-    emergingThemes: z.array(z.string()),
-    contradictions: z.array(z.string()),
-    genericResponses: z.array(z.string()), // Flagged "best practices" answers
-    depthIndicators: z.array(z.object({
-      topic: z.string(),
-      depth: z.enum(['surface', 'moderate', 'deep']),
-    })),
-  }),
-  nextAction: z.object({
-    type: z.enum(['probe_deeper', 'new_topic', 'clarify', 'wrap_up']),
-    suggestion: z.string(),
-    rationale: z.string(),
-  }),
-});
+  gapIdentification: {
+    area: string;
+    importance: 'critical' | 'high' | 'medium' | 'low';
+    suggestedProbe: string;
+  }[];
 
-export type NoteTakerAnalysis = z.infer<typeof NoteTakerAnalysisSchema>;
+  timeStatus: {
+    elapsedMinutes: number;
+    targetMinutes: number;
+    pacing: 'behind' | 'on_track' | 'ahead';
+    shouldWrapUp: boolean;
+  };
 
-export async function analyzeConversation(
-  role: string,
-  plan: InterviewPlan,
-  transcript: Message[],
-  elapsedMinutes: number,
-  targetMinutes: number
-): Promise<NoteTakerAnalysis> {
-  // This agent returns STRUCTURED DATA only
-  // It does NOT generate conversational text
+  patternDetection: {
+    emergingThemes: string[];
+    contradictions: string[];
+    genericResponses: string[];  // Flagged "best practices" answers
+  };
+
+  nextAction: {
+    type: 'probe_deeper' | 'new_topic' | 'clarify' | 'wrap_up';
+    suggestion: string;
+    rationale: string;
+  };
 }
 ```
 
-### 2. Refactor the Interviewer Agent
+### Digital Persona Output
 
-The Interviewer should query the Note-Taker before each response. The Note-Taker's structured output guides the next question.
-
-**Refactor: `lib/agents/interviewer.ts`**
+For expert knowledge capture, the output should be a **reusable first-person system prompt**:
 
 ```typescript
-export async function generateInterviewResponse(
-  role: EducationRole,
-  plan: InterviewPlan,
-  conversationHistory: Message[],
-  currentMessage: string,
-  noteTakerAnalysis: NoteTakerAnalysis  // NEW: Structured guidance
-): Promise<string> {
-
-  // Build prompt with Note-Taker insights
-  const prompt = `You are conducting an interview with a ${role}.
-
-${buildConversationContext(conversationHistory)}
-
-Their latest response: ${currentMessage}
-
-## Strategic Guidance (from analysis)
-
-Coverage Status:
-${formatCoverage(noteTakerAnalysis.coverageAnalysis)}
-
-Key Gaps to Address:
-${formatGaps(noteTakerAnalysis.gapIdentification)}
-
-Suggested Next Action: ${noteTakerAnalysis.nextAction.type}
-Specific Probe: ${noteTakerAnalysis.nextAction.suggestion}
-
-Time Status: ${noteTakerAnalysis.timeStatus.pacing} (${noteTakerAnalysis.timeStatus.elapsedMinutes}/${noteTakerAnalysis.timeStatus.targetMinutes} min)
-${noteTakerAnalysis.timeStatus.shouldWrapUp ? '⚠️ TIME TO WRAP UP' : ''}
-
-## Interviewer Constraints
-- Ask only ONE question per response
-- Keep response to 2-3 sentences max
-- Reference their specific language when acknowledging
-- If they gave a generic "best practice" answer, probe for a specific example
-- PROBE FOR MISTAKES AND FAILURES, not just successes
-
-Respond as a peer colleague, not an interviewer:`;
-}
-```
-
-### 3. Add the Validation Stage
-
-The article emphasizes that experts must validate the output. This creates a feedback loop for improving persona fidelity.
-
-**Create: `lib/orchestration/validation.ts`**
-
-```typescript
-export interface ValidationResult {
-  samplePrompt: string;
-  expertScore: 1 | 2 | 3 | 4 | 5;  // Fidelity score
-  feedback: string;
-  areasToRevisit: string[];
-}
-
-export async function generateValidationSample(
-  persona: DigitalPersona,
-  scenario: string
-): Promise<string> {
-  // Generate sample output using the persona
-  // Expert reviews if this "sounds like them"
-}
-
-export async function processValidationFeedback(
-  sessionId: string,
-  validation: ValidationResult
-): Promise<void> {
-  // Low scores (1-3) trigger targeted follow-up interviews
-  if (validation.expertScore <= 3) {
-    await scheduleFollowUpInterview(sessionId, validation.areasToRevisit);
-  }
-}
-```
-
-### 4. Transform Analysis Output to Digital Persona
-
-The current output is summary + insights. The article recommends outputting a **reusable first-person system prompt**.
-
-**Create: `lib/orchestration/persona-generator.ts`**
-
-```typescript
-export interface DigitalPersona {
-  // Professional identity and domain positioning
+interface DigitalPersona {
   identity: {
     role: string;
     domain: string;
-    experienceLevel: string;
     uniquePositioning: string;
   };
 
-  // Core beliefs and non-negotiable principles
   beliefs: {
     coreValues: string[];
     nonNegotiables: string[];
-    controversialStances: string[];  // What they believe that others don't
+    controversialStances: string[];
   };
 
-  // Specific frameworks and named methodologies
   frameworks: {
     name: string;
     description: string;
     whenToUse: string;
   }[];
 
-  // Communication style and constraints
   communicationStyle: {
     tone: string;
-    vocabulary: string[];  // Terms they frequently use
-    avoidances: string[];  // Things they would never say
-    patterns: string[];    // Characteristic phrases
+    vocabulary: string[];
+    avoidances: string[];
   };
 
-  // Few-shot examples of their reasoning patterns
   reasoningExamples: {
     situation: string;
     theirResponse: string;
     rationale: string;
   }[];
-
-  // Knowledge base references
-  knowledgeBase: {
-    sources: string[];
-    usageInstructions: string;
-  };
-}
-
-export async function generatePersonaFromTranscript(
-  role: string,
-  transcript: Message[],
-  plan: InterviewPlan
-): Promise<DigitalPersona> {
-  // Multi-pass extraction:
-  // 1. Extract entities (tools, concepts, people mentioned)
-  // 2. Identify belief patterns
-  // 3. Extract frameworks and methodologies
-  // 4. Capture communication style
-  // 5. Build reasoning examples from their stories
-}
-
-export function personaToSystemPrompt(persona: DigitalPersona): string {
-  // Convert persona to first-person system prompt
-  // "I am [identity]. I believe [beliefs]. When I approach [situation], I use [framework]..."
 }
 ```
 
----
+### When to Implement Multi-Agent
 
-## Implementation Phases
-
-### Phase 1: Note-Taker Agent (High Impact)
-
-1. Create `lib/agents/note-taker.ts` with structured output schema
-2. Modify `/api/interview/message` to call Note-Taker before Interviewer
-3. Store Note-Taker analysis in session for debugging/analytics
-4. Add server-side time tracking (don't rely on client)
-
-**Files to modify:**
-- `lib/orchestration/interview.ts` → refactor into `lib/agents/`
-- `app/api/interview/message/route.ts` → add Note-Taker call
-
-### Phase 2: Adaptive Questioning (Medium Impact)
-
-1. Replace fixed `questions[]` with dynamic question selection
-2. Implement coverage tracking against focus areas
-3. Add gap prioritization logic
-4. Implement "probe for failures" heuristic
-
-**Key behavior change:**
-- Current: Follow pre-defined question list
-- New: Dynamically select next question based on coverage gaps
-
-### Phase 3: Digital Persona Output (High Impact)
-
-1. Create `lib/orchestration/persona-generator.ts`
-2. Replace current `analyzeInterview()` with multi-pass extraction
-3. Output first-person system prompt instead of summary
-4. Store persona as reusable asset
-
-**Files to modify:**
-- `app/api/interview/complete/route.ts`
-- `types/index.ts` → add `DigitalPersona` type
-
-### Phase 4: Validation Loop (Medium Impact)
-
-1. Create validation UI for expert review
-2. Generate sample outputs from persona
-3. Collect fidelity scores (1-5)
-4. Trigger follow-up interviews for low scores
+| Trigger | Threshold | Action |
+|---------|-----------|--------|
+| Interview duration | >30 minutes | Add Note-Taker for context management |
+| Output requirement | Digital persona | Add persona generator pipeline |
+| Cost tolerance | >$0.25/interview | Multi-agent becomes viable |
+| Quality complaints | Repeated questions, lost context | Investigate Note-Taker |
+| Expert validation | Required | Add validation loop |
 
 ---
 
-## Architectural Rules from the Article
+## Architectural Rules (From 99Ravens Article)
 
-### Must Implement:
+These rules apply regardless of single vs. multi-agent:
 
-1. **Role-specific prompts are mandatory** ✅ (Already done)
-2. **Multi-agent beats single-agent for interviews >10 min** ❌ (Need Note-Taker)
-3. **Note-Taker must return structured data** ❌ (Not implemented)
-4. **Probe for mistakes, not just successes** ❌ (Need to add to prompts)
-5. **Time enforcement needs external trigger** ⚠️ (Client-side only currently)
+### Always Implement:
+1. ✅ **Role-specific prompts are mandatory** - Already done
+2. ✅ **Filter to human/AI turns** - Already filtering system messages
+3. ✅ **Attribute who said what** - Using role prefixes
+4. 🔲 **Probe for mistakes, not just successes** - Add to prompts
+5. 🔲 **Time enforcement needs external trigger** - Move to server-side
 
-### Data Handling Rules:
-
-1. **Filter to human/AI turns** ✅ (Already filtering system messages)
-2. **Attribute who said what** ✅ (Using role prefixes)
-3. **Convert HTML to markdown** ⚠️ (Not applicable yet, but add if importing docs)
-
----
-
-## Proposed File Structure
-
-```
-lib/
-├── agents/
-│   ├── interviewer.ts       # Conversation agent
-│   ├── note-taker.ts        # Analysis agent (structured output)
-│   └── types.ts             # Shared agent types
-├── orchestration/
-│   ├── interview-flow.ts    # State machine for interview stages
-│   ├── persona-generator.ts # Transcript → Digital Persona
-│   └── validation.ts        # Expert validation loop
-├── config/
-│   ├── plans/
-│   │   ├── student.json
-│   │   ├── instructor.json
-│   │   └── ...
-│   ├── prompts/
-│   │   ├── interviewer.md
-│   │   ├── note-taker.md
-│   │   └── persona.md
-│   └── roles.ts
-└── db/
-    └── sessions.ts          # (unchanged)
-```
-
----
-
-## Database Schema Additions
-
-```sql
--- Add to sessions table
-ALTER TABLE sessions ADD COLUMN persona JSONB;  -- Digital persona output
-ALTER TABLE sessions ADD COLUMN validation_scores INTEGER[];  -- Expert scores
-
--- New table for Note-Taker snapshots
-CREATE TABLE note_taker_snapshots (
-  id SERIAL PRIMARY KEY,
-  session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
-  turn_number INTEGER,
-  analysis JSONB,  -- NoteTakerAnalysis
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- New table for validation
-CREATE TABLE persona_validations (
-  id SERIAL PRIMARY KEY,
-  session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
-  sample_prompt TEXT,
-  sample_output TEXT,
-  expert_score INTEGER CHECK (expert_score BETWEEN 1 AND 5),
-  feedback TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
----
-
-## Priority Matrix
-
-| Change | Impact | Effort | Priority |
-|--------|--------|--------|----------|
-| Note-Taker agent | High | Medium | **P0** |
-| Structured output schema | High | Low | **P0** |
-| Server-side time tracking | Medium | Low | **P1** |
-| "Probe for failures" prompting | Medium | Low | **P1** |
-| Adaptive question selection | High | Medium | **P1** |
-| Digital Persona output | High | High | **P2** |
-| Validation loop | Medium | High | **P2** |
-| Externalized config | Medium | Medium | **P3** |
+### Multi-Agent Specific (Future):
+1. **Note-Taker must return structured data, not prose**
+2. **Interviewer should not see Note-Taker's "voice"**
+3. **Coverage tracking drives question selection**
 
 ---
 
 ## Summary
 
-The core insight from the article is that **a single-agent system cannot maintain peer status** in extended interviews. The solution is architectural: separate the conversational intelligence (Interviewer) from the strategic intelligence (Note-Taker).
+The 99Ravens multi-agent architecture is impressive but **over-engineered for this use case**.
 
-The Note-Taker acts as working memory, tracking:
-- What's been covered vs. what's missing
-- When the expert gives generic answers that need probing
-- Time pacing and wrap-up triggers
-- The specific next probe to ask
+From [Anthropic's guidance on building effective agents](https://www.anthropic.com/engineering/building-effective-agents):
 
-This separation allows the Interviewer to stay fully present in the conversation while the Note-Taker ensures strategic coverage.
+> "Start with simple prompts, optimize them with comprehensive evaluation, and add multi-step agentic systems only when simpler solutions fall short."
 
-The output should be a **reusable digital persona** - a first-person system prompt that captures the expert's thinking, not just a summary of what they said.
+For 10-minute stakeholder feedback interviews with summary outputs:
+- **Do**: Structured output, better prompts, server-side time tracking
+- **Don't**: Multi-agent architecture, digital personas, validation loops
+
+Revisit this decision when interview duration exceeds 30 minutes or output requirements change to reusable personas.
+
+---
+
+## References
+
+- [99Ravens: Your Experts Won't Train Your AI. You Have to Interview Them](https://www.99ravens.agency/resources/blogs/your-experts-wont-train-your-ai-you-have-to-interview-them/)
+- [Anthropic: Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents)
+- [Anthropic: Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+- [Anthropic: How We Built Our Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system)
