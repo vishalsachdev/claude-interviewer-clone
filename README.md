@@ -1,17 +1,14 @@
-# Interview Bot Clone
+# AI in Education Interview Bot
 
-An open-source interview bot clone inspired by Claude's conversational interview system. This project replicates the dynamic, probing interview capabilities using OpenAI's GPT models. Built with Next.js, LangChain, and deployed on Vercel.
+An open-source interview bot for gathering perspectives on AI use in education. Users select their role (Student, Instructor, Researcher, or Staff) and engage in a dynamic, conversational interview. Built with Next.js, LangChain, and OpenAI GPT-4o.
 
-## About the Original Claude Interview Bot
+## How It Works
 
-This project is inspired by Claude's interview bot, which demonstrates how AI can conduct in-depth, conversational interviews with dynamic probing. The original system leverages Claude's conversational strengths to:
-
-- Generate comprehensive interview plans based on topics
-- Conduct natural, flowing conversations with intelligent follow-up questions
-- Probe deeper into topics through contextual understanding
-- Analyze interview transcripts to extract key insights
-
-This clone implements similar functionality using OpenAI's GPT-4o model (with support for other OpenAI chat models), making it accessible as an open-source alternative.
+1. **Select Your Role**: Choose from Student, Instructor, Researcher, or Staff
+2. **Conversational Interview**: The bot asks one question at a time, probing deeper based on your responses
+3. **Smart Timing**: Interview naturally wraps up after ~10 minutes or 8+ exchanges
+4. **Gentle Nudges**: If you're idle for 2 minutes, a friendly reminder appears (no auto-close)
+5. **Analysis**: Upon completion, receive a summary, key insights, and recommendations
 
 ## Privacy & Data Protection
 
@@ -27,9 +24,12 @@ This application is designed for research and educational purposes. Use responsi
 
 ## Features
 
-- **Dynamic Interview Planning**: AI generates interview questions based on context
-- **Conversational Interviewing**: Natural, probing follow-up questions
-- **Transcript Analysis**: Automatic analysis and insights from interviews
+- **Role-Based Interviews**: Tailored questions for Students, Instructors, Researchers, and Staff
+- **One Question at a Time**: Natural, focused conversation flow
+- **Smart Interview Closure**: Time-based (10 min) or exchange-based (8+ messages) wrap-up
+- **Idle Detection**: 2-minute nudge for inactive users (no forced closure)
+- **Warm Wrap-Up**: Bot asks for final thoughts before completing
+- **Transcript Analysis**: Summary, key insights, and recommendations
 - **Cloud Database**: Supabase (PostgreSQL) for reliable storage
 - **Cost Tracking**: Monitor token usage and costs per interview
 

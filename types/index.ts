@@ -31,8 +31,6 @@ export interface InterviewPlan {
 export interface InterviewAnalysis {
   summary: string;
   keyInsights: string[];
-  depthScore: number;
-  completionRate: number;
   recommendations?: string[];
 }
 

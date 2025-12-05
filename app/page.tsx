@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { InterviewSession, Message, EducationRole } from '@/types';
 
 type RoleInfo = {
@@ -24,6 +24,11 @@ const ROLE_DISPLAY: Record<EducationRole, string> = {
   staff: 'Staff',
 };
 
+// Interview timing constants
+const TARGET_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+const IDLE_NUDGE_MS = 2 * 60 * 1000; // 2 minutes
+const MIN_EXCHANGES_FOR_COMPLETION = 8;
+
 export default function Home() {
   const [session, setSession] = useState<InterviewSession | null>(null);
   const [message, setMessage] = useState('');
@@ -32,6 +37,14 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Timing state
+  const [interviewStartTime, setInterviewStartTime] = useState<number | null>(null);
+  const [lastBotMessageTime, setLastBotMessageTime] = useState<number | null>(null);
+  const [showWrapUpPrompt, setShowWrapUpPrompt] = useState(false);
+  const [showIdleNudge, setShowIdleNudge] = useState(false);
+  const [isWrapUpMode, setIsWrapUpMode] = useState(false);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -39,6 +52,44 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [session?.transcript]);
+
+  // Idle detection - reset timer on new messages or when loading
+  useEffect(() => {
+    if (!session || session.status !== 'interviewing' || loading) {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Clear existing timer
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+
+    // Set new idle timer
+    idleTimerRef.current = setTimeout(() => {
+      setShowIdleNudge(true);
+    }, IDLE_NUDGE_MS);
+
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+    };
+  }, [session?.transcript.length, loading, session?.status]);
+
+  // Check if we should trigger wrap-up mode
+  const shouldWrapUp = useCallback((): boolean => {
+    if (!interviewStartTime || !session) return false;
+
+    const elapsed = Date.now() - interviewStartTime;
+    const userMessages = session.transcript.filter(m => m.role === 'user').length;
+
+    // Wrap up if: time >= 10 min OR exchanges >= 8
+    return elapsed >= TARGET_DURATION_MS || userMessages >= MIN_EXCHANGES_FOR_COMPLETION;
+  }, [interviewStartTime, session]);
 
   const startInterview = async (role: EducationRole) => {
     setLoading(true);
@@ -52,6 +103,8 @@ export default function Home() {
 
       const data = await response.json();
       setSession(data.session);
+      setInterviewStartTime(Date.now());
+      setLastBotMessageTime(Date.now());
     } catch (error) {
       console.error('Error starting interview:', error);
       alert('Failed to start interview. Please try again.');
@@ -67,6 +120,13 @@ export default function Home() {
     const userMessage = message.trim();
     setMessage('');
     setLoading(true);
+    setShowIdleNudge(false);
+
+    // Check if we should enter wrap-up mode
+    const enterWrapUp = !isWrapUpMode && shouldWrapUp();
+    if (enterWrapUp) {
+      setIsWrapUpMode(true);
+    }
 
     const tempUserMessage: Message = {
       role: 'user',
@@ -86,11 +146,18 @@ export default function Home() {
         body: JSON.stringify({
           sessionId: session.id,
           message: userMessage,
+          isWrapUp: enterWrapUp,
         }),
       });
 
       const data = await response.json();
       setSession(data.session);
+      setLastBotMessageTime(Date.now());
+
+      // Show wrap-up prompt after bot's closing message
+      if (enterWrapUp) {
+        setShowWrapUpPrompt(true);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Failed to send message. Please try again.');
@@ -98,6 +165,10 @@ export default function Home() {
         ...session,
         transcript: session.transcript.slice(0, -1),
       });
+      // Reset wrap-up mode if message failed
+      if (enterWrapUp) {
+        setIsWrapUpMode(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -129,6 +200,11 @@ export default function Home() {
     setSession(null);
     setAnalysis(null);
     setMessage('');
+    setInterviewStartTime(null);
+    setLastBotMessageTime(null);
+    setShowWrapUpPrompt(false);
+    setShowIdleNudge(false);
+    setIsWrapUpMode(false);
   };
 
   return (
@@ -351,7 +427,12 @@ export default function Home() {
                   <input
                     type="text"
                     value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    onChange={(e) => {
+                      setMessage(e.target.value);
+                      if (e.target.value.length > 0) {
+                        setShowIdleNudge(false);
+                      }
+                    }}
                     onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
                     onFocus={(e) => {
                       e.target.style.borderColor = 'var(--coral)';
@@ -414,6 +495,38 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Idle nudge */}
+              {showIdleNudge && session.status === 'interviewing' && !loading && (
+                <div style={styles.nudgeBar}>
+                  <span>Still there? Take your time—when you're ready, continue or press Complete to finish.</span>
+                  <button 
+                    onClick={() => setShowIdleNudge(false)} 
+                    style={styles.nudgeDismiss}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {/* Wrap-up prompt */}
+              {showWrapUpPrompt && session.status === 'interviewing' && !loading && (
+                <div style={styles.wrapUpPrompt}>
+                  <span>Ready to complete the interview?</span>
+                  <button
+                    onClick={completeInterview}
+                    style={{ ...styles.button, ...styles.primaryButton, marginLeft: '12px', padding: '8px 16px' }}
+                  >
+                    Complete Interview
+                  </button>
+                  <button
+                    onClick={() => setShowWrapUpPrompt(false)}
+                    style={{ ...styles.button, ...styles.secondaryButton, marginLeft: '8px', padding: '8px 16px' }}
+                  >
+                    Continue
+                  </button>
+                </div>
+              )}
+
               {analysis && (
                 <div style={{
                   ...styles.analysisSection,
@@ -432,18 +545,6 @@ export default function Home() {
                           <li key={idx} style={styles.analysisListItem}>{insight}</li>
                         ))}
                       </ul>
-                    </div>
-                    <div style={styles.analysisMetrics}>
-                      <div style={styles.metric}>
-                        <div style={styles.metricLabel}>Depth Score</div>
-                        <div style={styles.metricValue}>{analysis.depthScore}<span style={styles.metricMax}>/5</span></div>
-                      </div>
-                      <div style={styles.metric}>
-                        <div style={styles.metricLabel}>Completion Rate</div>
-                        <div style={styles.metricValue}>
-                          {(analysis.completionRate * 100).toFixed(0)}<span style={styles.metricMax}>%</span>
-                        </div>
-                      </div>
                     </div>
                     {analysis.recommendations && analysis.recommendations.length > 0 && (
                       <div style={styles.analysisItem}>
@@ -788,5 +889,41 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '1.75rem',
     opacity: 0.4,
     marginLeft: '0.25rem',
+  },
+  nudgeBar: {
+    background: 'linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)',
+    border: '1px solid #ffd54f',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    marginTop: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: '0.9rem',
+    color: '#5d4037',
+    animation: 'fadeInUp 0.4s ease-out',
+  },
+  nudgeDismiss: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    color: '#8d6e63',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    transition: 'background 0.2s ease',
+  },
+  wrapUpPrompt: {
+    background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+    border: '1px solid var(--sage)',
+    borderRadius: '12px',
+    padding: '16px 20px',
+    marginTop: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '0.95rem',
+    color: 'var(--indigo-deep)',
+    fontWeight: '500',
+    animation: 'fadeInUp 0.4s ease-out',
   },
 };

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, saveMessage, updateCost } from '@/lib/db/sessions';
-import { DEFAULT_MODEL, generateInterviewResponse, calculateCost } from '@/lib/orchestration/interview';
+import { DEFAULT_MODEL, generateInterviewResponse, generateWrapUpResponse, calculateCost } from '@/lib/orchestration/interview';
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId, message } = await request.json();
+    const { sessionId, message, isWrapUp } = await request.json();
 
     if (!sessionId || !message) {
       return NextResponse.json(
@@ -49,12 +49,18 @@ export async function POST(request: NextRequest) {
       content: msg.content
     }));
 
-    const assistantResponse = await generateInterviewResponse(
-      session.role,
-      session.plan,
-      conversationHistory,
-      message
-    );
+    const assistantResponse = isWrapUp
+      ? await generateWrapUpResponse(
+          session.role,
+          conversationHistory,
+          message
+        )
+      : await generateInterviewResponse(
+          session.role,
+          session.plan,
+          conversationHistory,
+          message
+        );
 
     // Save assistant response
     const assistantMessage = {

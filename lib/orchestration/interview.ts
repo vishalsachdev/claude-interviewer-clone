@@ -169,6 +169,36 @@ Respond conversationally. Remember: ONE question only.`;
   return response.content as string;
 }
 
+export async function generateWrapUpResponse(
+  role: EducationRole,
+  conversationHistory: Array<{ role: string; content: string }>,
+  currentMessage: string
+): Promise<string> {
+  const roleLabel = ROLE_LABELS[role];
+  
+  const historyContext = conversationHistory
+    .slice(-6)
+    .map(msg => `${msg.role}: ${msg.content}`)
+    .join('\n');
+
+  const prompt = `You are wrapping up an interview about AI use in education with a ${roleLabel}.
+
+Previous conversation:
+${historyContext}
+
+Their latest response: ${currentMessage}
+
+Your task: Write a brief, warm closing message that:
+1. Acknowledges their final response (1 sentence)
+2. Thanks them for sharing their experiences
+3. Asks if there's anything else they'd like to add before we finish
+
+Keep it to 2-3 sentences total. Be genuine and appreciative.`;
+
+  const response = await model.invoke(prompt);
+  return response.content as string;
+}
+
 export async function analyzeInterview(
   role: EducationRole,
   plan: InterviewPlan,
@@ -184,8 +214,6 @@ export async function analyzeInterview(
     return {
       summary: `Interview with a ${roleLabel} was started but not completed. No responses were provided.`,
       keyInsights: ['Interview incomplete - no responses recorded'],
-      depthScore: 0,
-      completionRate: 0,
       recommendations: ['Complete the interview by responding to the interviewer\'s questions']
     };
   }
@@ -198,8 +226,6 @@ export async function analyzeInterview(
         'Interview incomplete - only minimal responses provided',
         'Insufficient data to extract meaningful insights about AI use in education'
       ],
-      depthScore: 1,
-      completionRate: Math.min(0.2, userResponses.length / 10),
       recommendations: ['Continue the interview to explore AI experiences more thoroughly']
     };
   }
@@ -223,13 +249,9 @@ Provide a comprehensive analysis as JSON:
 {
   "summary": "A 2-3 sentence summary capturing this ${roleLabel}'s perspective on AI in education based ONLY on their actual responses",
   "keyInsights": ["insight1", "insight2", "insight3"],
-  "depthScore": 4,
-  "completionRate": 0.95,
   "recommendations": ["recommendation1", "recommendation2"]
 }
 
-Depth Score: Rate 1-5 how deeply they explored their AI experiences (5 = very candid and detailed)
-Completion Rate: 0-1, how many focus areas were meaningfully discussed
 Key Insights: 3-5 main takeaways about this person's relationship with AI in education
 Recommendations: Suggestions for how the institution could better support this ${roleLabel}`;
 
@@ -243,9 +265,7 @@ Recommendations: Suggestions for how the institution could better support this $
   } catch (error) {
     return {
       summary: `Interview with a ${roleLabel} completed. The conversation explored their experiences with AI in education.`,
-      keyInsights: ['Interview completed successfully'],
-      depthScore: 3,
-      completionRate: 0.8
+      keyInsights: ['Interview completed successfully']
     };
   }
 }

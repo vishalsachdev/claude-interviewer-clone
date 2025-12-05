@@ -57,40 +57,47 @@ The interview bot leverages LLM conversational strengths for dynamic probing dur
 
 | Component | Implementation | Rationale |
 |-----------|---------------|-----------|
-| **LLM** | OpenAI GPT-4/GPT-3.5 | High-quality responses, reliable API, good context handling |
+| **LLM** | OpenAI GPT-4o | High-quality responses, reliable API, good context handling |
 | **Framework** | LangChain | Multi-stage workflow management, prompt chaining |
 | **UI** | Next.js 14 (React) | Modern, scalable, excellent Vercel integration |
-| **Storage** | SQLite (better-sqlite3) | Lightweight, no external dependencies, easy local development |
+| **Storage** | Supabase (PostgreSQL) | Cloud-hosted, real-time capabilities, easy integration |
 | **Deployment** | Vercel | Serverless, automatic scaling, easy CI/CD |
 | **Backend** | Next.js API Routes | Integrated with frontend, serverless functions |
 
 ## Interview Workflow
 
-### Phase 1: Planning
-- User provides interview topic
-- System generates interview plan with:
+### Phase 1: Role Selection
+- User selects their educational role (Student, Instructor, Researcher, or Staff)
+- System loads pre-defined interview plan for the selected role
+- Fixed topic: "AI in Education"
+- Plan includes:
   - Objectives (3-5 clear goals)
   - Initial questions (8-12 questions)
   - Focus areas (3-5 areas to probe)
-- Plan stored in database
 
 ### Phase 2: Interviewing
-- System presents initial question
+- System presents personalized greeting with first question
 - User responds
-- System generates probing follow-up questions
+- System generates probing follow-up questions (one at a time)
 - Conversation continues dynamically
 - All messages stored in transcript
 - Real-time cost tracking
 
-### Phase 3: Analysis
+### Phase 3: Interview Closure
+- **Time-based wrap-up**: After 10 minutes elapsed
+- **Exchange-based wrap-up**: After 8+ user messages
+- Bot sends warm closing message asking for final thoughts
+- UI prompts user to complete or continue
+- **Idle detection**: 2-minute nudge if user stops responding (no auto-close)
+- User must explicitly click "Complete" to finish
+
+### Phase 4: Analysis
 - User completes interview
 - System analyzes transcript
 - Generates:
-  - Summary
-  - Key insights
-  - Depth score (1-5)
-  - Completion rate (0-1)
-  - Recommendations (optional)
+  - Summary (2-3 sentences based on actual responses)
+  - Key insights (3-5 takeaways)
+  - Recommendations (actionable suggestions)
 
 ## Key Metrics
 
@@ -98,10 +105,7 @@ The interview bot leverages LLM conversational strengths for dynamic probing dur
 
 - **Completion Rate**: >90%
   - Sessions reaching end without dropout
-  
-- **Depth Score**: 4+/5
-  - LLM self-evaluation of probe usage (via rubric)
-  - Measures how deeply the topic was explored
+  - Gentle nudges for idle users (no forced closure)
 
 - **Bias Check**: <5% skew
   - Post-analysis sentiment difference by demographic
@@ -148,12 +152,14 @@ The interview bot leverages LLM conversational strengths for dynamic probing dur
 
 - `POST /api/interview/start`
   - Creates new interview session
-  - Generates interview plan
-  - Returns session ID and initial question
+  - Accepts `role` parameter (student, instructor, researcher, staff)
+  - Loads pre-defined interview plan for role
+  - Returns session ID and initial greeting with first question
 
 - `POST /api/interview/message`
   - Sends user message
-  - Returns AI response
+  - Accepts optional `isWrapUp` flag for closing mode
+  - Returns AI response (normal or wrap-up style)
   - Updates transcript
 
 - `POST /api/interview/complete`
@@ -170,13 +176,14 @@ The interview bot leverages LLM conversational strengths for dynamic probing dur
 ### Sessions Table
 ```sql
 CREATE TABLE sessions (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   topic TEXT NOT NULL,
+  role TEXT NOT NULL,  -- 'student', 'instructor', 'researcher', 'staff'
   status TEXT NOT NULL,  -- 'planning', 'interviewing', 'completed', 'analyzing'
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  plan TEXT,  -- JSON
-  analysis TEXT,  -- JSON
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  plan JSONB,
+  analysis JSONB,
   cost_tokens INTEGER DEFAULT 0,
   cost_amount REAL DEFAULT 0
 );
@@ -185,12 +192,11 @@ CREATE TABLE sessions (
 ### Messages Table
 ```sql
 CREATE TABLE messages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  session_id TEXT NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES sessions(id),
   role TEXT NOT NULL,  -- 'user', 'assistant', 'system'
   content TEXT NOT NULL,
-  timestamp TEXT NOT NULL,
-  FOREIGN KEY (session_id) REFERENCES sessions(id)
+  timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
@@ -221,9 +227,22 @@ Target: <$0.05 per interview (approximately 500-1000 tokens per interview)
 ### Environment Variables
 ```
 OPENAI_API_KEY=your_openai_api_key_here
-DATABASE_PATH=./data/interviews.db
-NEXT_PUBLIC_APP_NAME=Interview Bot Clone
+OPENAI_MODEL=gpt-4o  # or gpt-4o-mini for cost savings
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
+
+## Implemented Features
+
+- [x] Role-based interview plans (Student, Instructor, Researcher, Staff)
+- [x] Fixed topic: AI in Education
+- [x] Time-based interview closure (10 minutes)
+- [x] Exchange-based closure (8+ messages)
+- [x] Idle user detection with gentle nudges (2 minutes)
+- [x] Warm wrap-up messages from bot
+- [x] Streamlined analysis (summary, insights, recommendations)
+- [x] Supabase integration for cloud storage
+- [x] Real-time cost tracking
 
 ## Future Enhancements
 
