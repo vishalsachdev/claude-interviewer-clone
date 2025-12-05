@@ -89,6 +89,34 @@ export async function analyzeInterview(
   plan: InterviewPlan,
   transcript: Array<{ role: string; content: string }>
 ): Promise<InterviewAnalysis> {
+  // Count actual user responses (exclude system and assistant messages)
+  const userResponses = transcript.filter(msg => msg.role === 'user');
+
+  // If no user responses or minimal engagement, return an incomplete analysis
+  if (userResponses.length === 0) {
+    return {
+      summary: `Interview was started but not completed. No responses were provided to explore the topic of ${topic}.`,
+      keyInsights: ['Interview incomplete - no user responses recorded'],
+      depthScore: 0,
+      completionRate: 0,
+      recommendations: ['Complete the interview by responding to the interviewer\'s questions']
+    };
+  }
+
+  // If only 1-2 responses, indicate minimal engagement
+  if (userResponses.length <= 2) {
+    return {
+      summary: `Interview was briefly started but ended early with minimal engagement on the topic of ${topic}.`,
+      keyInsights: [
+        'Interview incomplete - only minimal responses provided',
+        'Insufficient data to extract meaningful insights'
+      ],
+      depthScore: 1,
+      completionRate: Math.min(0.2, userResponses.length / 10),
+      recommendations: ['Continue the interview to explore the topic more thoroughly']
+    };
+  }
+
   const transcriptText = transcript
     .filter(msg => msg.role !== 'system')
     .map(msg => `${msg.role}: ${msg.content}`)
@@ -102,18 +130,20 @@ ${plan.objectives.map(obj => `- ${obj}`).join('\n')}
 Transcript:
 ${transcriptText}
 
+IMPORTANT: Base your analysis ONLY on what was actually discussed in the transcript. Do not make assumptions or generate insights based solely on the objectives.
+
 Provide a comprehensive analysis as JSON:
 {
-  "summary": "A 2-3 sentence summary of the interview",
+  "summary": "A 2-3 sentence summary of the interview based ONLY on actual responses",
   "keyInsights": ["insight1", "insight2", "insight3"],
   "depthScore": 4,
   "completionRate": 0.95,
   "recommendations": ["recommendation1", "recommendation2"]
 }
 
-Depth Score: Rate 1-5 how deeply the topic was explored (5 = very deep)
-Completion Rate: 0-1, how much of the interview plan was completed
-Key Insights: 3-5 main takeaways
+Depth Score: Rate 1-5 how deeply the topic was explored based on actual responses (5 = very deep)
+Completion Rate: 0-1, how much of the interview plan was completed based on actual discussion
+Key Insights: 3-5 main takeaways from actual responses only
 Recommendations: Optional suggestions for follow-up or action items`;
 
   const response = await model.invoke(prompt);

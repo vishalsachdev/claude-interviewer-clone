@@ -115,30 +115,57 @@ export default function Home() {
   return (
     <>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Karla:wght@400;500;600;700&family=Fira+Code:wght@400;600&display=swap');
 
         :root {
-          --burgundy: #8B1E3F;
-          --dark-burgundy: #5C0F29;
-          --amber: #D4A574;
-          --cream: #FCF8F3;
-          --charcoal: #2B2D42;
-          --soft-white: #F5F1E8;
-          --shadow: rgba(139, 30, 63, 0.15);
+          --indigo-deep: #1a2332;
+          --indigo-soft: #2d3e56;
+          --coral: #ff6b6b;
+          --coral-soft: #ff8787;
+          --pink-soft: #ffe0e9;
+          --cream: #fef9f3;
+          --sage: #9db4a8;
+          --sage-light: #c4d5cc;
+          --text-primary: #1a2332;
+          --text-secondary: #5a6b7d;
         }
 
         body {
-          background: linear-gradient(135deg, var(--soft-white) 0%, #E8DCC8 100%);
-          font-family: 'IBM Plex Sans', sans-serif;
+          background:
+            radial-gradient(circle at 20% 80%, rgba(255, 224, 233, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(157, 180, 168, 0.2) 0%, transparent 50%),
+            linear-gradient(135deg, #fef9f3 0%, #ffe8e0 50%, #fef9f3 100%);
+          font-family: 'Karla', sans-serif;
           margin: 0;
           padding: 0;
           min-height: 100vh;
+          position: relative;
+          overflow-x: hidden;
+        }
+
+        body::before {
+          content: '';
+          position: fixed;
+          top: -50%;
+          right: -50%;
+          width: 200%;
+          height: 200%;
+          background-image:
+            repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(26, 35, 50, 0.02) 60px, rgba(26, 35, 50, 0.02) 61px);
+          animation: rotate 120s linear infinite;
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        @keyframes rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
 
         @keyframes fadeInUp {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px);
           }
           to {
             opacity: 1;
@@ -148,28 +175,46 @@ export default function Home() {
 
         @keyframes pulse {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+          50% { opacity: 0.4; }
         }
 
         @keyframes slideInLeft {
           from {
             opacity: 0;
-            transform: translateX(-20px);
+            transform: translateX(-30px) scale(0.95);
           }
           to {
             opacity: 1;
-            transform: translateX(0);
+            transform: translateX(0) scale(1);
           }
         }
 
         @keyframes slideInRight {
           from {
             opacity: 0;
-            transform: translateX(20px);
+            transform: translateX(30px) scale(0.95);
           }
           to {
             opacity: 1;
-            transform: translateX(0);
+            transform: translateX(0) scale(1);
+          }
+        }
+
+        @keyframes shimmer {
+          0% {
+            background-position: -1000px 0;
+          }
+          100% {
+            background-position: 1000px 0;
+          }
+        }
+
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
           }
         }
       `}</style>
@@ -192,6 +237,14 @@ export default function Home() {
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !loading && startInterview()}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--coral)';
+                    e.target.style.boxShadow = '0 4px 16px rgba(255, 107, 107, 0.15), 0 0 0 3px rgba(255, 107, 107, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'var(--sage-light)';
+                    e.target.style.boxShadow = '0 2px 8px rgba(26, 35, 50, 0.04)';
+                  }}
                   placeholder="e.g., AI in healthcare, Remote work challenges, Climate solutions"
                   style={styles.topicInput}
                   disabled={loading}
@@ -199,6 +252,16 @@ export default function Home() {
                 <button
                   onClick={startInterview}
                   disabled={loading || !topic.trim()}
+                  onMouseEnter={(e) => {
+                    if (!loading && topic.trim()) {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.45), 0 4px 12px rgba(255, 107, 107, 0.3)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.35), 0 2px 8px rgba(255, 107, 107, 0.2)';
+                  }}
                   style={{
                     ...styles.button,
                     ...styles.primaryButton,
@@ -229,6 +292,14 @@ export default function Home() {
                 </div>
                 <button
                   onClick={startNewInterview}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 18px rgba(157, 180, 168, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(157, 180, 168, 0.3)';
+                  }}
                   style={{ ...styles.button, ...styles.secondaryButton }}
                 >
                   New Interview
@@ -271,6 +342,14 @@ export default function Home() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = 'var(--coral)';
+                      e.target.style.boxShadow = '0 4px 16px rgba(255, 107, 107, 0.15), 0 0 0 3px rgba(255, 107, 107, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = 'var(--sage-light)';
+                      e.target.style.boxShadow = '0 2px 8px rgba(26, 35, 50, 0.04)';
+                    }}
                     placeholder="Share your thoughts..."
                     style={styles.messageInput}
                     disabled={loading}
@@ -278,6 +357,16 @@ export default function Home() {
                   <button
                     onClick={sendMessage}
                     disabled={loading || !message.trim()}
+                    onMouseEnter={(e) => {
+                      if (!loading && message.trim()) {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.45), 0 4px 12px rgba(255, 107, 107, 0.3)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.35), 0 2px 8px rgba(255, 107, 107, 0.2)';
+                    }}
                     style={{
                       ...styles.button,
                       ...styles.primaryButton,
@@ -290,6 +379,18 @@ export default function Home() {
                   <button
                     onClick={completeInterview}
                     disabled={loading}
+                    onMouseEnter={(e) => {
+                      if (!loading) {
+                        e.currentTarget.style.background = 'var(--indigo-soft)';
+                        e.currentTarget.style.color = 'white';
+                        e.currentTarget.style.borderColor = 'var(--indigo-soft)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'var(--indigo-soft)';
+                      e.currentTarget.style.borderColor = 'var(--indigo-soft)';
+                    }}
                     style={{
                       ...styles.button,
                       ...styles.tertiaryButton,
@@ -356,272 +457,300 @@ export default function Home() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: '1000px',
+    maxWidth: '1100px',
     margin: '0 auto',
-    padding: '3rem 1.5rem',
+    padding: '4rem 1.5rem',
     minHeight: '100vh',
+    position: 'relative',
+    zIndex: 1,
   },
   card: {
-    background: 'linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.85))',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '20px',
-    padding: '3rem',
-    boxShadow: '0 20px 60px var(--shadow), 0 0 0 1px rgba(139, 30, 63, 0.1)',
-    border: '1px solid rgba(139, 30, 63, 0.1)',
+    background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.92) 100%)',
+    backdropFilter: 'blur(20px) saturate(180%)',
+    borderRadius: '24px',
+    padding: '3.5rem',
+    boxShadow: '0 30px 90px rgba(26, 35, 50, 0.12), 0 0 0 1px rgba(255, 107, 107, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+    border: '1px solid rgba(255, 107, 107, 0.1)',
+    position: 'relative',
+    overflow: 'hidden',
   },
   header: {
     textAlign: 'center',
-    marginBottom: '3rem',
-    animation: 'fadeInUp 0.6s ease-out',
+    marginBottom: '3.5rem',
+    animation: 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+    position: 'relative',
   },
   title: {
-    fontFamily: "'DM Serif Display', serif",
-    fontSize: '3.5rem',
-    fontWeight: 'normal',
-    marginBottom: '0.75rem',
-    color: 'var(--burgundy)',
-    letterSpacing: '-0.02em',
+    fontFamily: "'Libre Baskerville', serif",
+    fontSize: '4rem',
+    fontWeight: 'bold',
+    marginBottom: '1rem',
+    color: 'var(--indigo-deep)',
+    letterSpacing: '-0.03em',
     lineHeight: '1.1',
+    textShadow: '0 2px 20px rgba(255, 107, 107, 0.1)',
+    position: 'relative',
   },
   subtitle: {
-    fontFamily: "'IBM Plex Sans', sans-serif",
-    color: 'var(--charcoal)',
-    fontSize: '1.125rem',
-    opacity: 0.7,
+    fontFamily: "'Karla', sans-serif",
+    color: 'var(--text-secondary)',
+    fontSize: '1.25rem',
     fontWeight: '400',
-    letterSpacing: '0.02em',
+    letterSpacing: '0.03em',
+    lineHeight: '1.6',
   },
   startSection: {
-    animation: 'fadeInUp 0.6s ease-out 0.2s both',
+    animation: 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both',
   },
   label: {
     display: 'block',
-    fontFamily: "'IBM Plex Sans', sans-serif",
-    fontSize: '1.125rem',
-    color: 'var(--charcoal)',
-    marginBottom: '1rem',
-    fontWeight: '500',
+    fontFamily: "'Karla', sans-serif",
+    fontSize: '1.25rem',
+    color: 'var(--text-primary)',
+    marginBottom: '1.25rem',
+    fontWeight: '600',
+    letterSpacing: '0.01em',
   },
   inputGroup: {
     display: 'flex',
-    gap: '0.75rem',
-    marginTop: '1rem',
+    gap: '1rem',
+    marginTop: '1.5rem',
   },
   topicInput: {
     flex: 1,
-    padding: '1rem 1.25rem',
-    border: '2px solid var(--amber)',
-    borderRadius: '12px',
-    fontSize: '1rem',
-    fontFamily: "'IBM Plex Sans', sans-serif",
+    padding: '1.125rem 1.5rem',
+    border: '2px solid var(--sage-light)',
+    borderRadius: '14px',
+    fontSize: '1.0625rem',
+    fontFamily: "'Karla', sans-serif",
     outline: 'none',
-    background: 'var(--cream)',
-    color: 'var(--charcoal)',
-    transition: 'all 0.3s ease',
+    background: 'white',
+    color: 'var(--text-primary)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(26, 35, 50, 0.04)',
   },
   messageInput: {
     flex: 1,
-    padding: '1rem 1.25rem',
-    border: '2px solid var(--amber)',
-    borderRadius: '12px',
-    fontSize: '1rem',
-    fontFamily: "'IBM Plex Sans', sans-serif",
+    padding: '1.125rem 1.5rem',
+    border: '2px solid var(--sage-light)',
+    borderRadius: '14px',
+    fontSize: '1.0625rem',
+    fontFamily: "'Karla', sans-serif",
     outline: 'none',
-    background: 'var(--cream)',
-    color: 'var(--charcoal)',
-    transition: 'all 0.3s ease',
+    background: 'white',
+    color: 'var(--text-primary)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(26, 35, 50, 0.04)',
   },
   button: {
-    padding: '1rem 2rem',
-    borderRadius: '12px',
+    padding: '1.125rem 2.25rem',
+    borderRadius: '14px',
     border: 'none',
     fontSize: '1rem',
-    fontFamily: "'IBM Plex Sans', sans-serif",
-    fontWeight: '600',
-    transition: 'all 0.3s ease',
-    letterSpacing: '0.02em',
+    fontFamily: "'Karla', sans-serif",
+    fontWeight: '700',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    letterSpacing: '0.03em',
+    cursor: 'pointer',
+    position: 'relative',
+    overflow: 'hidden',
   },
   primaryButton: {
-    background: 'var(--burgundy)',
+    background: 'linear-gradient(135deg, var(--coral) 0%, var(--coral-soft) 100%)',
     color: 'white',
-    boxShadow: '0 4px 12px rgba(139, 30, 63, 0.3)',
+    boxShadow: '0 6px 20px rgba(255, 107, 107, 0.35), 0 2px 8px rgba(255, 107, 107, 0.2)',
   },
   secondaryButton: {
-    background: 'var(--amber)',
-    color: 'var(--dark-burgundy)',
+    background: 'var(--sage)',
+    color: 'white',
+    boxShadow: '0 4px 12px rgba(157, 180, 168, 0.3)',
   },
   tertiaryButton: {
     background: 'transparent',
-    border: '2px solid var(--burgundy)',
-    color: 'var(--burgundy)',
+    border: '2px solid var(--indigo-soft)',
+    color: 'var(--indigo-soft)',
+    boxShadow: 'none',
   },
   chatSection: {
     display: 'flex',
     flexDirection: 'column',
     minHeight: '70vh',
-    animation: 'fadeInUp 0.6s ease-out',
+    animation: 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
   },
   chatHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '2rem',
-    paddingBottom: '1.5rem',
-    borderBottom: '2px solid var(--amber)',
+    marginBottom: '2.5rem',
+    paddingBottom: '2rem',
+    borderBottom: '2px solid var(--pink-soft)',
+    position: 'relative',
   },
   chatTitle: {
-    fontFamily: "'DM Serif Display', serif",
-    fontSize: '2rem',
-    marginBottom: '0.5rem',
-    color: 'var(--burgundy)',
-    fontWeight: 'normal',
+    fontFamily: "'Libre Baskerville', serif",
+    fontSize: '2.25rem',
+    marginBottom: '0.75rem',
+    color: 'var(--indigo-deep)',
+    fontWeight: 'bold',
+    letterSpacing: '-0.02em',
   },
   chatStatus: {
-    fontFamily: "'IBM Plex Sans', sans-serif",
-    color: 'var(--charcoal)',
-    fontSize: '0.9rem',
+    fontFamily: "'Karla', sans-serif",
+    color: 'var(--text-secondary)',
+    fontSize: '0.95rem',
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    opacity: 0.8,
+    gap: '0.75rem',
   },
   statusBadge: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '0.75rem',
-    padding: '0.25rem 0.75rem',
-    background: 'var(--amber)',
-    color: 'var(--dark-burgundy)',
-    borderRadius: '6px',
+    fontFamily: "'Fira Code', monospace",
+    fontSize: '0.8rem',
+    padding: '0.375rem 0.875rem',
+    background: 'linear-gradient(135deg, var(--coral) 0%, var(--coral-soft) 100%)',
+    color: 'white',
+    borderRadius: '8px',
     fontWeight: '600',
     textTransform: 'lowercase',
+    boxShadow: '0 2px 8px rgba(255, 107, 107, 0.2)',
   },
   statusDivider: {
-    opacity: 0.5,
+    opacity: 0.3,
   },
   monospace: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '0.85rem',
+    fontFamily: "'Fira Code', monospace",
+    fontSize: '0.875rem',
   },
   messagesContainer: {
     flex: 1,
     overflowY: 'auto',
-    padding: '1rem 0',
+    padding: '1.5rem 0',
     display: 'flex',
     flexDirection: 'column',
-    gap: '1.25rem',
+    gap: '1.5rem',
   },
   message: {
-    padding: '1.25rem',
-    borderRadius: '16px',
+    padding: '1.5rem 1.75rem',
+    borderRadius: '18px',
     maxWidth: '75%',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    boxShadow: '0 4px 16px rgba(26, 35, 50, 0.08)',
+    position: 'relative',
   },
   userMessage: {
-    background: 'var(--burgundy)',
+    background: 'linear-gradient(135deg, var(--indigo-deep) 0%, var(--indigo-soft) 100%)',
     color: 'white',
     alignSelf: 'flex-end',
-    borderBottomRightRadius: '4px',
+    borderBottomRightRadius: '6px',
+    boxShadow: '0 6px 20px rgba(26, 35, 50, 0.15)',
   },
   assistantMessage: {
-    background: 'var(--cream)',
-    color: 'var(--charcoal)',
+    background: 'white',
+    color: 'var(--text-primary)',
     alignSelf: 'flex-start',
-    border: '1px solid var(--amber)',
-    borderBottomLeftRadius: '4px',
+    border: '2px solid var(--pink-soft)',
+    borderBottomLeftRadius: '6px',
+    boxShadow: '0 4px 16px rgba(26, 35, 50, 0.06)',
   },
   messageRole: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '0.7rem',
-    opacity: 0.7,
-    marginBottom: '0.5rem',
+    fontFamily: "'Fira Code', monospace",
+    fontSize: '0.75rem',
+    opacity: 0.6,
+    marginBottom: '0.625rem',
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: '0.1em',
+    letterSpacing: '0.12em',
   },
   messageContent: {
-    fontFamily: "'IBM Plex Sans', sans-serif",
-    fontSize: '1rem',
-    lineHeight: '1.6',
+    fontFamily: "'Karla', sans-serif",
+    fontSize: '1.0625rem',
+    lineHeight: '1.7',
+    letterSpacing: '0.01em',
   },
   analysisSection: {
-    marginTop: '2.5rem',
-    padding: '2rem',
-    background: 'linear-gradient(135deg, var(--cream) 0%, rgba(212, 165, 116, 0.1) 100%)',
-    borderRadius: '16px',
-    border: '2px solid var(--amber)',
+    marginTop: '3rem',
+    padding: '2.5rem',
+    background: 'linear-gradient(145deg, rgba(255, 224, 233, 0.3) 0%, rgba(255, 255, 255, 0.9) 100%)',
+    borderRadius: '20px',
+    border: '2px solid var(--pink-soft)',
+    boxShadow: '0 10px 40px rgba(255, 107, 107, 0.1)',
+    position: 'relative',
+    overflow: 'hidden',
   },
   analysisTitle: {
-    fontFamily: "'DM Serif Display', serif",
-    fontSize: '1.75rem',
-    marginBottom: '1.5rem',
-    color: 'var(--burgundy)',
-    fontWeight: 'normal',
+    fontFamily: "'Libre Baskerville', serif",
+    fontSize: '2rem',
+    marginBottom: '2rem',
+    color: 'var(--indigo-deep)',
+    fontWeight: 'bold',
+    letterSpacing: '-0.02em',
   },
   analysisContent: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1.5rem',
+    gap: '2rem',
   },
   analysisItem: {
-    marginBottom: '0.5rem',
+    marginBottom: '0.75rem',
   },
   analysisLabel: {
-    fontFamily: "'IBM Plex Sans', sans-serif",
-    fontWeight: '600',
-    marginBottom: '0.75rem',
+    fontFamily: "'Karla', sans-serif",
+    fontWeight: '700',
+    marginBottom: '0.875rem',
     display: 'block',
-    color: 'var(--burgundy)',
-    fontSize: '1.1rem',
+    color: 'var(--coral)',
+    fontSize: '1.15rem',
+    letterSpacing: '0.02em',
   },
   analysisParagraph: {
-    fontFamily: "'IBM Plex Sans', sans-serif",
-    lineHeight: '1.7',
-    color: 'var(--charcoal)',
-    margin: '0.5rem 0 0 0',
+    fontFamily: "'Karla', sans-serif",
+    lineHeight: '1.8',
+    color: 'var(--text-primary)',
+    margin: '0.75rem 0 0 0',
+    fontSize: '1.0625rem',
   },
   analysisList: {
-    margin: '0.5rem 0 0 0',
-    paddingLeft: '1.5rem',
+    margin: '0.75rem 0 0 0',
+    paddingLeft: '1.75rem',
   },
   analysisListItem: {
-    fontFamily: "'IBM Plex Sans', sans-serif",
-    lineHeight: '1.7',
-    color: 'var(--charcoal)',
-    marginBottom: '0.5rem',
+    fontFamily: "'Karla', sans-serif",
+    lineHeight: '1.8',
+    color: 'var(--text-primary)',
+    marginBottom: '0.75rem',
+    fontSize: '1.0625rem',
   },
   analysisMetrics: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1.5rem',
-    marginTop: '1rem',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '1.75rem',
+    marginTop: '1.5rem',
   },
   metric: {
-    padding: '1.5rem',
+    padding: '2rem',
     background: 'white',
-    borderRadius: '12px',
-    border: '2px solid var(--amber)',
+    borderRadius: '16px',
+    border: '2px solid var(--sage-light)',
     textAlign: 'center',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    boxShadow: '0 6px 20px rgba(26, 35, 50, 0.08)',
+    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
   },
   metricLabel: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '0.75rem',
+    fontFamily: "'Fira Code', monospace",
+    fontSize: '0.8rem',
     textTransform: 'uppercase',
-    letterSpacing: '0.1em',
-    color: 'var(--charcoal)',
-    opacity: 0.7,
-    marginBottom: '0.5rem',
+    letterSpacing: '0.12em',
+    color: 'var(--text-secondary)',
+    marginBottom: '0.75rem',
     fontWeight: '600',
   },
   metricValue: {
-    fontFamily: "'DM Serif Display', serif",
-    fontSize: '2.5rem',
-    color: 'var(--burgundy)',
-    fontWeight: 'normal',
+    fontFamily: "'Libre Baskerville', serif",
+    fontSize: '3rem',
+    color: 'var(--coral)',
+    fontWeight: 'bold',
   },
   metricMax: {
-    fontSize: '1.5rem',
-    opacity: 0.5,
+    fontSize: '1.75rem',
+    opacity: 0.4,
     marginLeft: '0.25rem',
   },
 };
