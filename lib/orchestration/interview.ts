@@ -3,10 +3,10 @@ import { InterviewPlan, InterviewAnalysis, EducationRole } from '@/types';
 
 export const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 
-// Temperature 0.8 keeps conversation lively while staying on-topic
+// Temperature 0.7 keeps conversation natural while staying focused
 const model = new ChatOpenAI({
   model: DEFAULT_MODEL,
-  temperature: 0.8,
+  temperature: 0.7,
   openAIApiKey: process.env.OPENAI_API_KEY,
 });
 
@@ -152,15 +152,18 @@ ${historyContext}
 
 Their latest response: ${currentMessage}
 
-Your task:
-1. Acknowledge their response warmly and naturally
-2. Ask a thoughtful follow-up that probes deeper into their experience
-3. Draw connections between what they've shared and the focus areas
-4. Keep the conversation flowing naturally - don't interrogate
-5. If they've explored a topic thoroughly, transition to a new area from your planned questions
-6. Be curious and empathetic - this is a conversation, not a survey
+IMPORTANT GUIDELINES:
+- Ask only ONE question per response. Never ask multiple questions.
+- Keep your response brief - 2-3 sentences max.
+- Briefly acknowledge what they shared, then ask your single follow-up question.
+- Don't summarize or repeat back everything they said.
+- Be warm but concise.
 
-Respond with your next question or comment. Be conversational and genuinely interested in their perspective.`;
+Your task:
+1. Give a brief, warm acknowledgment (1 sentence)
+2. Ask ONE focused follow-up question that probes deeper OR moves to a new topic
+
+Respond conversationally. Remember: ONE question only.`;
 
   const response = await model.invoke(prompt);
   return response.content as string;
