@@ -1,6 +1,9 @@
+export type EducationRole = 'student' | 'instructor' | 'researcher' | 'staff';
+
 export interface InterviewSession {
   id: string;
   topic: string;
+  role: EducationRole;
   status: 'planning' | 'interviewing' | 'completed' | 'analyzing';
   createdAt: string;
   updatedAt: string;

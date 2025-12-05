@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Analyze the interview
     const analysis = await analyzeInterview(
-      session.topic,
+      session.role,
       session.plan,
       session.transcript
     );

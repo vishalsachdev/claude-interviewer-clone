@@ -1,13 +1,34 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { InterviewSession, Message } from '@/types';
+import { InterviewSession, Message, EducationRole } from '@/types';
+
+type RoleInfo = {
+  id: EducationRole;
+  title: string;
+  description: string;
+  icon: string;
+};
+
+const ROLES: RoleInfo[] = [
+  { id: 'student', title: 'Student', description: 'Learning with AI', icon: '🎓' },
+  { id: 'instructor', title: 'Instructor', description: 'Teaching with AI', icon: '📚' },
+  { id: 'researcher', title: 'Researcher', description: 'Researching with AI', icon: '🔬' },
+  { id: 'staff', title: 'Staff', description: 'Supporting with AI', icon: '🏫' },
+];
+
+const ROLE_DISPLAY: Record<EducationRole, string> = {
+  student: 'Student',
+  instructor: 'Instructor',
+  researcher: 'Researcher',
+  staff: 'Staff',
+};
 
 export default function Home() {
   const [session, setSession] = useState<InterviewSession | null>(null);
-  const [topic, setTopic] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingRole, setLoadingRole] = useState<EducationRole | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -19,25 +40,24 @@ export default function Home() {
     scrollToBottom();
   }, [session?.transcript]);
 
-  const startInterview = async () => {
-    if (!topic.trim()) return;
-
+  const startInterview = async (role: EducationRole) => {
     setLoading(true);
+    setLoadingRole(role);
     try {
       const response = await fetch('/api/interview/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topic.trim() }),
+        body: JSON.stringify({ role }),
       });
 
       const data = await response.json();
       setSession(data.session);
-      setTopic('');
     } catch (error) {
       console.error('Error starting interview:', error);
       alert('Failed to start interview. Please try again.');
     } finally {
       setLoading(false);
+      setLoadingRole(null);
     }
   };
 
@@ -108,7 +128,6 @@ export default function Home() {
   const startNewInterview = () => {
     setSession(null);
     setAnalysis(null);
-    setTopic('');
     setMessage('');
   };
 
@@ -222,62 +241,54 @@ export default function Home() {
       <main style={styles.container}>
         <div style={styles.card}>
           <div style={styles.header}>
-            <h1 style={styles.title}>Interview Room</h1>
+            <h1 style={styles.title}>AI in Education</h1>
             <p style={styles.subtitle}>
-              Conversational depth through AI-guided dialogue
+              Share your experiences with AI in your educational role
             </p>
           </div>
 
           {!session ? (
             <div style={styles.startSection}>
-              <label style={styles.label}>What shall we discuss today?</label>
-              <div style={styles.inputGroup}>
-                <input
-                  type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !loading && startInterview()}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = 'var(--coral)';
-                    e.target.style.boxShadow = '0 4px 16px rgba(255, 107, 107, 0.15), 0 0 0 3px rgba(255, 107, 107, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'var(--sage-light)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(26, 35, 50, 0.04)';
-                  }}
-                  placeholder="e.g., AI in healthcare, Remote work challenges, Climate solutions"
-                  style={styles.topicInput}
-                  disabled={loading}
-                />
-                <button
-                  onClick={startInterview}
-                  disabled={loading || !topic.trim()}
-                  onMouseEnter={(e) => {
-                    if (!loading && topic.trim()) {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.45), 0 4px 12px rgba(255, 107, 107, 0.3)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.35), 0 2px 8px rgba(255, 107, 107, 0.2)';
-                  }}
-                  style={{
-                    ...styles.button,
-                    ...styles.primaryButton,
-                    opacity: loading || !topic.trim() ? 0.5 : 1,
-                    cursor: loading || !topic.trim() ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {loading ? 'Preparing...' : 'Begin Interview'}
-                </button>
+              <label style={styles.label}>Select your role to begin</label>
+              <div style={styles.roleGrid}>
+                {ROLES.map((role, idx) => (
+                  <button
+                    key={role.id}
+                    onClick={() => startInterview(role.id)}
+                    disabled={loading}
+                    onMouseEnter={(e) => {
+                      if (!loading) {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(26, 35, 50, 0.15)';
+                        e.currentTarget.style.borderColor = 'var(--coral)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 16px rgba(26, 35, 50, 0.08)';
+                      e.currentTarget.style.borderColor = 'var(--sage-light)';
+                    }}
+                    style={{
+                      ...styles.roleCard,
+                      opacity: loading && loadingRole !== role.id ? 0.5 : 1,
+                      cursor: loading ? 'wait' : 'pointer',
+                      animation: `fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${0.1 + idx * 0.1}s both`,
+                    }}
+                  >
+                    <span style={styles.roleIcon}>{role.icon}</span>
+                    <span style={styles.roleTitle}>{role.title}</span>
+                    <span style={styles.roleDescription}>
+                      {loadingRole === role.id ? 'Starting...' : role.description}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
             <div style={styles.chatSection}>
               <div style={styles.chatHeader}>
                 <div>
-                  <h2 style={styles.chatTitle}>{session.topic}</h2>
+                  <h2 style={styles.chatTitle}>{session.topic} — {ROLE_DISPLAY[session.role]}</h2>
                   <p style={styles.chatStatus}>
                     <span style={styles.statusBadge}>{session.status}</span>
                     {session.cost && (
@@ -507,27 +518,52 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Karla', sans-serif",
     fontSize: '1.25rem',
     color: 'var(--text-primary)',
-    marginBottom: '1.25rem',
+    marginBottom: '1.5rem',
     fontWeight: '600',
     letterSpacing: '0.01em',
+    textAlign: 'center',
+  },
+  roleGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '1.25rem',
+    maxWidth: '600px',
+    margin: '0 auto',
+  },
+  roleCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '2rem 1.5rem',
+    background: 'white',
+    border: '2px solid var(--sage-light)',
+    borderRadius: '18px',
+    boxShadow: '0 4px 16px rgba(26, 35, 50, 0.08)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    cursor: 'pointer',
+    outline: 'none',
+  },
+  roleIcon: {
+    fontSize: '2.5rem',
+    marginBottom: '0.75rem',
+  },
+  roleTitle: {
+    fontFamily: "'Libre Baskerville', serif",
+    fontSize: '1.375rem',
+    fontWeight: 'bold',
+    color: 'var(--indigo-deep)',
+    marginBottom: '0.375rem',
+  },
+  roleDescription: {
+    fontFamily: "'Karla', sans-serif",
+    fontSize: '0.95rem',
+    color: 'var(--text-secondary)',
+    fontWeight: '500',
   },
   inputGroup: {
     display: 'flex',
     gap: '1rem',
     marginTop: '1.5rem',
-  },
-  topicInput: {
-    flex: 1,
-    padding: '1.125rem 1.5rem',
-    border: '2px solid var(--sage-light)',
-    borderRadius: '14px',
-    fontSize: '1.0625rem',
-    fontFamily: "'Karla', sans-serif",
-    outline: 'none',
-    background: 'white',
-    color: 'var(--text-primary)',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    boxShadow: '0 2px 8px rgba(26, 35, 50, 0.04)',
   },
   messageInput: {
     flex: 1,

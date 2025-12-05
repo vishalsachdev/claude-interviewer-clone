@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }));
 
     const assistantResponse = await generateInterviewResponse(
-      session.topic,
+      session.role,
       session.plan,
       conversationHistory,
       message

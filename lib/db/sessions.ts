@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { InterviewSession, Message, InterviewPlan, InterviewAnalysis } from '@/types';
+import { InterviewSession, Message, InterviewPlan, InterviewAnalysis, EducationRole } from '@/types';
 
 // Lazy initialization to avoid build-time errors
 let supabase: SupabaseClient | null = null;
@@ -18,7 +18,7 @@ function getSupabase(): SupabaseClient {
   return supabase;
 }
 
-export async function createSession(topic: string): Promise<string> {
+export async function createSession(topic: string, role: EducationRole): Promise<string> {
   const id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const now = new Date().toISOString();
 
@@ -27,6 +27,7 @@ export async function createSession(topic: string): Promise<string> {
     .insert({
       id,
       topic,
+      role,
       status: 'planning',
       created_at: now,
       updated_at: now
@@ -63,6 +64,7 @@ export async function getSession(sessionId: string): Promise<InterviewSession | 
   return {
     id: session.id,
     topic: session.topic,
+    role: session.role as EducationRole,
     status: session.status,
     createdAt: session.created_at,
     updatedAt: session.updated_at,

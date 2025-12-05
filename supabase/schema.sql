@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   topic TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('student', 'instructor', 'researcher', 'staff')),
   status TEXT NOT NULL CHECK (status IN ('planning', 'interviewing', 'analyzing', 'completed')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -13,6 +14,12 @@ CREATE TABLE IF NOT EXISTS sessions (
   cost_tokens INTEGER DEFAULT 0,
   cost_amount REAL DEFAULT 0
 );
+
+-- Migration: Add role column to existing sessions table
+-- Run this if you have existing data:
+-- ALTER TABLE sessions ADD COLUMN IF NOT EXISTS role TEXT CHECK (role IN ('student', 'instructor', 'researcher', 'staff'));
+-- UPDATE sessions SET role = 'student' WHERE role IS NULL;
+-- ALTER TABLE sessions ALTER COLUMN role SET NOT NULL;
 
 -- Messages table
 CREATE TABLE IF NOT EXISTS messages (
