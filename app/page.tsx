@@ -78,7 +78,7 @@ export default function Home() {
         clearTimeout(idleTimerRef.current);
       }
     };
-  }, [session?.transcript.length, loading, session?.status]);
+  }, [session, loading]);
 
   // Check if we should trigger wrap-up mode
   const shouldWrapUp = useCallback((): boolean => {
@@ -498,7 +498,7 @@ export default function Home() {
               {/* Idle nudge */}
               {showIdleNudge && session.status === 'interviewing' && !loading && (
                 <div style={styles.nudgeBar}>
-                  <span>Still there? Take your time—when you're ready, continue or press Complete to finish.</span>
+                  <span>Still there? Take your time—when you&apos;re ready, continue or press Complete to finish.</span>
                   <button 
                     onClick={() => setShowIdleNudge(false)} 
                     style={styles.nudgeDismiss}
