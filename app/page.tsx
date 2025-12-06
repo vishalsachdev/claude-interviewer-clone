@@ -315,6 +315,28 @@ export default function Home() {
             transform: translateY(-10px);
           }
         }
+
+        .expectations-list li {
+          position: relative;
+          padding-left: 1.5rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .expectations-list li::before {
+          content: '→';
+          position: absolute;
+          left: 0;
+          color: var(--sage);
+          font-weight: 600;
+        }
+
+        .expectations-list li:last-child {
+          margin-bottom: 0;
+        }
+
+        .expectations-list strong {
+          color: var(--indigo-deep);
+        }
       `}</style>
 
       <main style={styles.container}>
@@ -324,10 +346,36 @@ export default function Home() {
             <p style={styles.subtitle}>
               Share your experiences with AI in your educational role
             </p>
+            <p style={styles.attribution}>
+              Inspired by the{' '}
+              <a
+                href="https://www.anthropic.com/news/anthropic-interviewer"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.attributionLink}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderBottomColor = 'var(--coral)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderBottomColor = 'transparent';
+                }}
+              >
+                Anthropic Claude Interviewer
+              </a>
+            </p>
           </div>
 
           {!session ? (
             <div style={styles.startSection}>
+              <div style={styles.expectationsBox}>
+                <h3 style={styles.expectationsTitle}>What to expect</h3>
+                <ul style={styles.expectationsList} className="expectations-list">
+                  <li>A conversational interview lasting about <strong>10 minutes</strong></li>
+                  <li>Questions tailored to your educational role</li>
+                  <li>An AI interviewer that listens and asks thoughtful follow-ups</li>
+                  <li>A personalized analysis of your responses at the end</li>
+                </ul>
+              </div>
               <label style={styles.label}>Select your role to begin</label>
               <div style={styles.roleGrid}>
                 {ROLES.map((role, idx) => (
@@ -615,8 +663,50 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.03em',
     lineHeight: '1.6',
   },
+  attribution: {
+    fontFamily: "'Karla', sans-serif",
+    color: 'var(--text-secondary)',
+    fontSize: '0.9rem',
+    fontWeight: '400',
+    marginTop: '1rem',
+    opacity: 0.75,
+  },
+  attributionLink: {
+    color: 'var(--coral)',
+    textDecoration: 'none',
+    fontWeight: '500',
+    borderBottom: '1px solid transparent',
+    transition: 'border-color 0.2s ease',
+  },
   startSection: {
     animation: 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both',
+  },
+  expectationsBox: {
+    background: 'linear-gradient(135deg, rgba(157, 180, 168, 0.1) 0%, rgba(196, 213, 204, 0.15) 100%)',
+    border: '1px solid var(--sage-light)',
+    borderRadius: '16px',
+    padding: '1.75rem 2rem',
+    marginBottom: '2.5rem',
+    maxWidth: '520px',
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  },
+  expectationsTitle: {
+    fontFamily: "'Libre Baskerville', serif",
+    fontSize: '1.1rem',
+    fontWeight: 'bold',
+    color: 'var(--indigo-deep)',
+    marginBottom: '1rem',
+    marginTop: 0,
+  },
+  expectationsList: {
+    fontFamily: "'Karla', sans-serif",
+    fontSize: '0.95rem',
+    color: 'var(--text-secondary)',
+    lineHeight: '1.7',
+    margin: 0,
+    paddingLeft: '1.25rem',
+    listStyleType: 'none',
   },
   label: {
     display: 'block',
