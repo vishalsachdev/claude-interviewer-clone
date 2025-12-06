@@ -386,6 +386,169 @@ interface DigitalPersona {
 
 ---
 
+## Recommended Framework: ai-sdk-deepagent
+
+When multi-agent becomes appropriate, use **[ai-sdk-deepagent](https://github.com/chrispangg/ai-sdk-deepagent)** as the implementation framework.
+
+### Why This Framework?
+
+| 99Ravens Requirement | ai-sdk-deepagent Feature | Fit |
+|---------------------|--------------------------|-----|
+| Note-Taker as subagent | `task` tool spawns isolated subagents | ✅ Direct match |
+| Structured data return | Subagents return to parent via shared filesystem | ✅ Supported |
+| Context window management | Auto-summarization + tool result eviction | ✅ Solves 40-min problem |
+| Independent context | Subagents have isolated context windows | ✅ Prevents interviewer confusion |
+| TypeScript/Vercel | Built for Vercel AI SDK, TypeScript | ✅ Matches current stack |
+
+### Framework Overview
+
+**ai-sdk-deepagent** is a TypeScript library for building sophisticated agents using Vercel's AI SDK. It reimplements deepagentsjs without LangChain/LangGraph dependencies, offering a lighter-weight alternative.
+
+**Core Capabilities:**
+
+1. **Subagent System** - Spawns specialized agents with isolated context windows
+2. **Planning Tool** (`write_todos`) - Task lists with status tracking
+3. **File System Access** - Virtual filesystem for persistent state
+4. **Context Management** - Auto-summarization at configurable token thresholds
+5. **Multi-Provider Support** - Anthropic, OpenAI, Azure, Bedrock, Groq
+
+### Proposed Architecture with deepagent
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Main Agent (Interviewer)                  │
+│                                                              │
+│  1. Receives user message                                    │
+│  2. Spawns Note-Taker subagent via task() tool              │
+│  3. Note-Taker analyzes transcript, writes to filesystem    │
+│  4. Interviewer reads analysis.json                         │
+│  5. Generates response with strategic guidance              │
+└─────────────────────────────────────────────────────────────┘
+         │                                    ▲
+         │ task("note-taker")                 │ read_file("analysis.json")
+         ▼                                    │
+┌─────────────────────────────────────────────────────────────┐
+│                  Subagent (Note-Taker)                       │
+│                                                              │
+│  - Isolated context window (no pollution)                   │
+│  - Analyzes full transcript                                 │
+│  - Returns structured NoteTakerAnalysis                     │
+│  - Writes to shared filesystem                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Implementation Sketch
+
+```typescript
+import { createAgent, createSubagent } from 'ai-sdk-deepagent';
+
+// Define the Note-Taker subagent
+const noteTakerAgent = createSubagent({
+  name: 'note-taker',
+  description: 'Analyzes interview transcript and returns structured coverage analysis',
+  systemPrompt: `You are an interview analyst. Analyze the transcript and return JSON:
+    {
+      "coverageAnalysis": [...],
+      "gapIdentification": [...],
+      "timeStatus": {...},
+      "nextAction": {...}
+    }
+    Write your analysis to analysis.json using write_file.`,
+  model: 'claude-sonnet-4-5-20250929', // Cheaper model for analysis
+});
+
+// Main Interviewer agent
+const interviewerAgent = createAgent({
+  name: 'interviewer',
+  systemPrompt: `You are conducting an expert interview.
+    Before each response:
+    1. Use task("note-taker") to analyze the conversation
+    2. Read analysis.json for strategic guidance
+    3. Generate your response based on the analysis`,
+  subagents: [noteTakerAgent],
+  tools: [/* interview-specific tools */],
+  storage: 'persistent', // Maintain state across turns
+});
+```
+
+### Key Features for Interview Use Case
+
+**1. Subagent Isolation**
+```typescript
+// Note-Taker runs in isolated context - doesn't see Interviewer's "voice"
+const analysis = await agent.task({
+  agent: 'note-taker',
+  prompt: `Analyze this transcript: ${transcript}`,
+});
+```
+
+**2. Automatic Context Management**
+```typescript
+// Auto-summarization prevents context overflow in long interviews
+const agent = createAgent({
+  contextManagement: {
+    summarizeAt: 50000, // tokens
+    preserveRecent: 10, // messages
+  },
+});
+```
+
+**3. Structured Output via Filesystem**
+```typescript
+// Note-Taker writes structured data, Interviewer reads it
+// No "voice confusion" - just clean JSON
+await agent.writeFile('analysis.json', JSON.stringify(analysis));
+const guidance = await agent.readFile('analysis.json');
+```
+
+**4. Cost Optimization**
+```typescript
+// Use cheaper model for Note-Taker analysis
+const noteTaker = createSubagent({
+  model: 'claude-haiku', // Cheaper for structured analysis
+});
+
+const interviewer = createAgent({
+  model: 'claude-sonnet', // Better for conversation
+  subagents: [noteTaker],
+});
+```
+
+### Migration Path
+
+When triggers are met (>30 min interviews, persona output required):
+
+1. **Install deepagent**: `bun add ai-sdk-deepagent`
+2. **Replace LangChain**: Remove `@langchain/openai`, use Vercel AI SDK
+3. **Create Note-Taker subagent**: Implement `NoteTakerAnalysis` schema
+4. **Refactor Interviewer**: Query Note-Taker before each response
+5. **Add filesystem storage**: Persist analysis between turns
+
+### Trade-offs
+
+| Aspect | Benefit | Cost |
+|--------|---------|------|
+| Subagent isolation | Clean context separation | +1 LLM call per turn |
+| Auto-summarization | Handle 40+ min interviews | Potential info loss |
+| Filesystem state | Persistent, debuggable | Slightly slower than memory |
+| Bun runtime | Fast, modern | Different from Node.js |
+
+### Runtime Requirement
+
+**Note**: ai-sdk-deepagent requires **Bun** runtime (not Node.js). This is a consideration for deployment:
+
+```bash
+# Install Bun
+curl -fsSL https://bun.sh/install | bash
+
+# Run with Bun
+bun run dev
+```
+
+Vercel supports Bun, so deployment compatibility is maintained.
+
+---
+
 ## Architectural Rules (From 99Ravens Article)
 
 These rules apply regardless of single vs. multi-agent:
@@ -426,3 +589,4 @@ Revisit this decision when interview duration exceeds 30 minutes or output requi
 - [Anthropic: Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents)
 - [Anthropic: Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
 - [Anthropic: How We Built Our Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system)
+- [ai-sdk-deepagent: Multi-agent framework for Vercel AI SDK](https://github.com/chrispangg/ai-sdk-deepagent)
