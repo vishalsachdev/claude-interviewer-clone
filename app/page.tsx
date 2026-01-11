@@ -337,13 +337,139 @@ export default function Home() {
         .expectations-list strong {
           color: var(--indigo-deep);
         }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+          .mobile-container {
+            padding: 1.5rem 1rem !important;
+          }
+
+          .mobile-card {
+            padding: 1.5rem !important;
+            border-radius: 16px !important;
+          }
+
+          .mobile-title {
+            font-size: 2.25rem !important;
+          }
+
+          .mobile-subtitle {
+            font-size: 1rem !important;
+          }
+
+          .mobile-role-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+
+          .mobile-role-card {
+            padding: 1.25rem 1rem !important;
+          }
+
+          .mobile-role-icon {
+            font-size: 2rem !important;
+          }
+
+          .mobile-role-title {
+            font-size: 1.15rem !important;
+          }
+
+          .mobile-chat-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+          }
+
+          .mobile-chat-title {
+            font-size: 1.5rem !important;
+          }
+
+          .mobile-chat-status {
+            flex-wrap: wrap !important;
+          }
+
+          .mobile-input-group {
+            flex-wrap: wrap !important;
+          }
+
+          .mobile-message-input {
+            width: 100% !important;
+            flex: none !important;
+          }
+
+          .mobile-button {
+            padding: 0.875rem 1.25rem !important;
+            font-size: 0.9rem !important;
+          }
+
+          .mobile-send-button {
+            flex: 1 !important;
+          }
+
+          .mobile-complete-button {
+            flex: 1 !important;
+          }
+
+          .mobile-message {
+            max-width: 90% !important;
+            padding: 1rem 1.25rem !important;
+          }
+
+          .mobile-analysis {
+            padding: 1.5rem !important;
+          }
+
+          .mobile-analysis-title {
+            font-size: 1.5rem !important;
+          }
+
+          .mobile-expectations-box {
+            padding: 1.25rem 1.5rem !important;
+          }
+
+          .mobile-wrap-up {
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+            text-align: center !important;
+          }
+
+          .mobile-wrap-up button {
+            margin-left: 0 !important;
+            width: 100% !important;
+          }
+
+          .mobile-nudge {
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+            text-align: center !important;
+          }
+
+          .mobile-new-interview-btn {
+            padding: 0.75rem 1rem !important;
+            font-size: 0.85rem !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .mobile-title {
+            font-size: 1.75rem !important;
+          }
+
+          .mobile-chat-title {
+            font-size: 1.25rem !important;
+          }
+
+          .mobile-button {
+            padding: 0.75rem 1rem !important;
+          }
+        }
       `}</style>
 
-      <main style={styles.container}>
-        <div style={styles.card}>
+      <main style={styles.container} className="mobile-container">
+        <div style={styles.card} className="mobile-card">
           <div style={styles.header}>
-            <h1 style={styles.title}>AI in Education</h1>
-            <p style={styles.subtitle}>
+            <h1 style={styles.title} className="mobile-title">AI in Education</h1>
+            <p style={styles.subtitle} className="mobile-subtitle">
               Share your experiences with AI in your educational role
             </p>
             <p style={styles.attribution}>
@@ -367,7 +493,7 @@ export default function Home() {
 
           {!session ? (
             <div style={styles.startSection}>
-              <div style={styles.expectationsBox}>
+              <div style={styles.expectationsBox} className="mobile-expectations-box">
                 <h3 style={styles.expectationsTitle}>What to expect</h3>
                 <ul style={styles.expectationsList} className="expectations-list">
                   <li>A conversational interview lasting about <strong>10 minutes</strong></li>
@@ -377,12 +503,13 @@ export default function Home() {
                 </ul>
               </div>
               <label style={styles.label}>Select your role to begin</label>
-              <div style={styles.roleGrid}>
+              <div style={styles.roleGrid} className="mobile-role-grid">
                 {ROLES.map((role, idx) => (
                   <button
                     key={role.id}
                     onClick={() => startInterview(role.id)}
                     disabled={loading}
+                    className="mobile-role-card"
                     onMouseEnter={(e) => {
                       if (!loading) {
                         e.currentTarget.style.transform = 'translateY(-4px)';
@@ -402,8 +529,8 @@ export default function Home() {
                       animation: `fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${0.1 + idx * 0.1}s both`,
                     }}
                   >
-                    <span style={styles.roleIcon}>{role.icon}</span>
-                    <span style={styles.roleTitle}>{role.title}</span>
+                    <span style={styles.roleIcon} className="mobile-role-icon">{role.icon}</span>
+                    <span style={styles.roleTitle} className="mobile-role-title">{role.title}</span>
                     <span style={styles.roleDescription}>
                       {loadingRole === role.id ? 'Starting...' : role.description}
                     </span>
@@ -413,10 +540,10 @@ export default function Home() {
             </div>
           ) : (
             <div style={styles.chatSection}>
-              <div style={styles.chatHeader}>
+              <div style={styles.chatHeader} className="mobile-chat-header">
                 <div>
-                  <h2 style={styles.chatTitle}>{session.topic} — {ROLE_DISPLAY[session.role]}</h2>
-                  <p style={styles.chatStatus}>
+                  <h2 style={styles.chatTitle} className="mobile-chat-title">{session.topic} — {ROLE_DISPLAY[session.role]}</h2>
+                  <p style={styles.chatStatus} className="mobile-chat-status">
                     <span style={styles.statusBadge}>{session.status}</span>
                     {session.cost && (
                       <>
@@ -430,6 +557,7 @@ export default function Home() {
                 </div>
                 <button
                   onClick={startNewInterview}
+                  className="mobile-new-interview-btn"
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = '0 6px 18px rgba(157, 180, 168, 0.4)';
@@ -448,6 +576,7 @@ export default function Home() {
                 {session.transcript.map((msg, idx) => (
                   <div
                     key={idx}
+                    className="mobile-message"
                     style={{
                       ...styles.message,
                       ...(msg.role === 'user' ? styles.userMessage : styles.assistantMessage),
@@ -463,7 +592,7 @@ export default function Home() {
                   </div>
                 ))}
                 {loading && (
-                  <div style={{ ...styles.message, ...styles.assistantMessage }}>
+                  <div style={{ ...styles.message, ...styles.assistantMessage }} className="mobile-message">
                     <div style={styles.messageRole}>Interviewer</div>
                     <div style={{ ...styles.messageContent, animation: 'pulse 1.5s ease-in-out infinite' }}>
                       Thinking...
@@ -474,11 +603,12 @@ export default function Home() {
               </div>
 
               {session.status === 'interviewing' && (
-                <div style={styles.inputGroup}>
+                <div style={styles.inputGroup} className="mobile-input-group">
                   <input
                     ref={inputRef}
                     type="text"
                     value={message}
+                    className="mobile-message-input"
                     onChange={(e) => {
                       setMessage(e.target.value);
                       if (e.target.value.length > 0) {
@@ -501,6 +631,7 @@ export default function Home() {
                   <button
                     onClick={sendMessage}
                     disabled={loading || !message.trim()}
+                    className="mobile-button mobile-send-button"
                     onMouseEnter={(e) => {
                       if (!loading && message.trim()) {
                         e.currentTarget.style.transform = 'translateY(-2px)';
@@ -523,6 +654,7 @@ export default function Home() {
                   <button
                     onClick={completeInterview}
                     disabled={loading}
+                    className="mobile-button mobile-complete-button"
                     onMouseEnter={(e) => {
                       if (!loading) {
                         e.currentTarget.style.background = 'var(--indigo-soft)';
@@ -549,10 +681,10 @@ export default function Home() {
 
               {/* Idle nudge */}
               {showIdleNudge && session.status === 'interviewing' && !loading && (
-                <div style={styles.nudgeBar}>
+                <div style={styles.nudgeBar} className="mobile-nudge">
                   <span>Still there? Take your time—when you&apos;re ready, continue or press Complete to finish.</span>
-                  <button 
-                    onClick={() => setShowIdleNudge(false)} 
+                  <button
+                    onClick={() => setShowIdleNudge(false)}
                     style={styles.nudgeDismiss}
                   >
                     ✕
@@ -562,16 +694,18 @@ export default function Home() {
 
               {/* Wrap-up prompt */}
               {showWrapUpPrompt && session.status === 'interviewing' && !loading && (
-                <div style={styles.wrapUpPrompt}>
+                <div style={styles.wrapUpPrompt} className="mobile-wrap-up">
                   <span>Ready to complete the interview?</span>
                   <button
                     onClick={completeInterview}
+                    className="mobile-button"
                     style={{ ...styles.button, ...styles.primaryButton, marginLeft: '12px', padding: '8px 16px' }}
                   >
                     Complete Interview
                   </button>
                   <button
                     onClick={() => setShowWrapUpPrompt(false)}
+                    className="mobile-button"
                     style={{ ...styles.button, ...styles.secondaryButton, marginLeft: '8px', padding: '8px 16px' }}
                   >
                     Continue
@@ -580,11 +714,14 @@ export default function Home() {
               )}
 
               {analysis && (
-                <div style={{
-                  ...styles.analysisSection,
-                  animation: 'fadeInUp 0.6s ease-out',
-                }}>
-                  <h3 style={styles.analysisTitle}>Interview Analysis</h3>
+                <div
+                  className="mobile-analysis"
+                  style={{
+                    ...styles.analysisSection,
+                    animation: 'fadeInUp 0.6s ease-out',
+                  }}
+                >
+                  <h3 style={styles.analysisTitle} className="mobile-analysis-title">Interview Analysis</h3>
                   <div style={styles.analysisContent}>
                     <div style={styles.analysisItem}>
                       <strong style={styles.analysisLabel}>Summary</strong>
