@@ -103,9 +103,16 @@ export default function Home() {
       });
 
       const data = await response.json();
-      setSession(data.session);
-      setInterviewStartTime(Date.now());
-      setLastBotMessageTime(Date.now());
+
+      // Defensive check: verify session has required data
+      if (data.session && data.session.id && data.session.role) {
+        setSession(data.session);
+        setInterviewStartTime(Date.now());
+        setLastBotMessageTime(Date.now());
+      } else {
+        console.error('Invalid session returned from start API:', data);
+        alert('Failed to start interview. Please try again.');
+      }
     } catch (error) {
       console.error('Error starting interview:', error);
       alert('Failed to start interview. Please try again.');
@@ -152,7 +159,26 @@ export default function Home() {
       });
 
       const data = await response.json();
-      setSession(data.session);
+
+      // Defensive check: only update session if valid data returned
+      // This prevents resetting to persona selection if API returns null
+      if (data.session && data.session.id && data.session.role) {
+        setSession(data.session);
+      } else {
+        // API returned invalid session - keep current session but add the assistant message
+        console.warn('API returned invalid session, preserving current state:', data);
+        if (data.message) {
+          const assistantMessage: Message = {
+            role: 'assistant',
+            content: data.message,
+            timestamp: new Date().toISOString(),
+          };
+          setSession({
+            ...session,
+            transcript: [...session.transcript, tempUserMessage, assistantMessage],
+          });
+        }
+      }
       setLastBotMessageTime(Date.now());
 
       // Show wrap-up prompt after bot's closing message
@@ -190,7 +216,18 @@ export default function Home() {
 
       const data = await response.json();
       setAnalysis(data.analysis);
-      setSession(data.session);
+
+      // Defensive check: only update session if valid data returned
+      if (data.session && data.session.id && data.session.role) {
+        setSession(data.session);
+      } else {
+        // API returned invalid session - update status locally
+        console.warn('API returned invalid session on complete, preserving current state:', data);
+        setSession({
+          ...session,
+          status: 'completed' as const,
+        });
+      }
     } catch (error) {
       console.error('Error completing interview:', error);
       alert('Failed to complete interview. Please try again.');
