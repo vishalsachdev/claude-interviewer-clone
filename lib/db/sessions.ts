@@ -48,6 +48,7 @@ export async function getSession(sessionId: string): Promise<InterviewSession | 
     .single();
 
   if (sessionError || !session) {
+    console.error('getSession failed for', sessionId, ':', sessionError?.message || 'No session found');
     return null;
   }
 

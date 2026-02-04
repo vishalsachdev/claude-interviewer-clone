@@ -102,9 +102,15 @@ export default function Home() {
         body: JSON.stringify({ role }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Start API error:', response.status, errorData);
+        alert(errorData.error || 'Failed to start interview. Please try again.');
+        return;
+      }
+
       const data = await response.json();
 
-      // Defensive check: verify session has required data
       if (data.session && data.session.id && data.session.role) {
         setSession(data.session);
         setInterviewStartTime(Date.now());
@@ -158,10 +164,16 @@ export default function Home() {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Message API error:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to send message');
+      }
+
       const data = await response.json();
 
       // Defensive check: only update session if valid data returned
-      // This prevents resetting to persona selection if API returns null
+      // This prevents resetting to persona selection if API returns null/invalid
       if (data.session && data.session.id && data.session.role) {
         setSession(data.session);
       } else {
@@ -214,14 +226,19 @@ export default function Home() {
         body: JSON.stringify({ sessionId: session.id }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Complete API error:', response.status, errorData);
+        alert(errorData.error || 'Failed to complete interview. Please try again.');
+        return;
+      }
+
       const data = await response.json();
       setAnalysis(data.analysis);
 
-      // Defensive check: only update session if valid data returned
       if (data.session && data.session.id && data.session.role) {
         setSession(data.session);
       } else {
-        // API returned invalid session - update status locally
         console.warn('API returned invalid session on complete, preserving current state:', data);
         setSession({
           ...session,
